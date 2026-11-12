@@ -43,6 +43,7 @@ describe('MikroORM migrator on Bun (spike)', () => {
         migrationsList: [{ name: 'CreateProbeTable', class: CreateProbeTable }],
         transactional: true,
         allOrNothing: true,
+        snapshot: false,
       },
     });
   });
