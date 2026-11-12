@@ -1,0 +1,98 @@
+name: wagering
+
+# Shared runtime configuration. Credentials here are local-only test values.
+x-app-env: &app-env
+  LOG_LEVEL: info
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  SQS_ENDPOINT: http://ministack:4566
+  DATABASE_URL: postgresql://wagering_app:app@postgres:5432/wagering
+  MIGRATION_DATABASE_URL: postgresql://wagering_migrator:migrator@postgres:5432/wagering
+
+x-app-image: &app-image
+  build:
+    context: .
+    target: runtime
+  image: wagering-app:local
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "${POSTGRES_HOST_PORT:-55432}:5432"
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d wagering"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # SQS emulator (see docs/adr/0016-sqs-emulator.md). The image ships its own healthcheck.
+  ministack:
+    image: ministackorg/ministack:1.5.40
+    ports:
+      - "${SQS_HOST_PORT:-4566}:4566"
+
+  # One-shot: creates the queues (idempotent).
+  sqs-init:
+    <<: *app-image
+    command: ["bun", "run", "scripts/sqs-bootstrap.ts"]
+    environment: *app-env
+    depends_on:
+      ministack:
+        condition: service_healthy
+    restart: "no"
+
+  # One-shot: applies pending migrations with the schema-owner role.
+  migrate:
+    <<: *app-image
+    command: ["bun", "run", "scripts/migrate.ts", "up"]
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *app-image
+    environment:
+      <<: *app-env
+      APP_ROLES: api
+      HTTP_PORT: "3000"
+    ports:
+      - "${API_HOST_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      sqs-init:
+        condition: service_completed_successfully
+
+  # Tooling container: dependency install, lint, typecheck and every test suite.
+  # The source is bind-mounted, so nothing needs to be installed on the host.
+  workspace:
+    image: oven/bun:1.4.4
+    working_dir: /app
+    environment:
+      <<: *app-env
+      BUN_INSTALL_CACHE_DIR: /bun-cache
+      DATABASE_URL: postgresql://wagering_app:app@postgres:5432/wagering_test
+      MIGRATION_DATABASE_URL: postgresql://wagering_migrator:migrator@postgres:5432/wagering_test
+    volumes:
+      - .:/app
+      - bun-cache:/bun-cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ministack:
+        condition: service_healthy
+    profiles: ["tools"]
+
+volumes:
+  postgres-data:
+  bun-cache:
