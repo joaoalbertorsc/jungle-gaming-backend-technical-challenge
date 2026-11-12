@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build, coverage and test reports
+dist/
+coverage/
+reports/
+
+# Environment files (keep the example)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
