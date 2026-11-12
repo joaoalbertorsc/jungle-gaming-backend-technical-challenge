@@ -115,7 +115,7 @@ function captureError(fn: () => unknown): Error {
     fn();
   } catch (error) {
     if (error instanceof Error) return error;
-    throw new Error(`expected an Error instance, got ${String(error)}`);
+    throw new Error(`expected an Error instance, got ${String(error)}`, { cause: error });
   }
   throw new Error('expected the function to throw');
 }

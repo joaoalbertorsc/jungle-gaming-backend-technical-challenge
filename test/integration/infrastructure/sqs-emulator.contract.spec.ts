@@ -178,7 +178,7 @@ describe('SQS emulator contract', () => {
     expect(await receive(queueUrl)).toEqual([]);
   });
 
-  it(`moves a message to the DLQ after ${MAX_RECEIVE_COUNT} receives without ack`, async () => {
+  it(`moves a message to the DLQ after ${String(MAX_RECEIVE_COUNT)} receives without ack`, async () => {
     await send('poison', 'group-dlq', 'dlq-1');
 
     for (let receiveCount = 1; receiveCount <= MAX_RECEIVE_COUNT; receiveCount++) {
