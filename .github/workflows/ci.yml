@@ -41,13 +41,14 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      - run: bun test test/unit --coverage --reporter=junit --reporter-outfile=reports/unit.xml
+      # Reports go to test-results/ (not gitignored): dorny/test-reporter discovers files through git.
+      - run: bun test test/unit --coverage --reporter=junit --reporter-outfile=test-results/unit.xml
       - name: Unit test report
         if: ${{ !cancelled() }}
         uses: dorny/test-reporter@v3
         with:
           name: Unit test results
-          path: reports/unit.xml
+          path: test-results/unit.xml
           reporter: java-junit
 
   infra:
@@ -61,13 +62,13 @@ jobs:
           docker compose run --rm workspace sh -c
           "bun install --frozen-lockfile &&
           bun test test/integration test/e2e --timeout 30000
-          --reporter=junit --reporter-outfile=reports/infra.xml"
+          --reporter=junit --reporter-outfile=test-results/infra.xml"
       - name: Integration test report
         if: ${{ !cancelled() }}
         uses: dorny/test-reporter@v3
         with:
           name: Integration and e2e test results
-          path: reports/infra.xml
+          path: test-results/infra.xml
           reporter: java-junit
       - name: Container logs on failure
         if: ${{ failure() }}
