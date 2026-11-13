@@ -4,6 +4,7 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createHttpApplication } from '../../src/bootstrap/create-http-application';
 import { loadConfig } from '../../src/config/load-config';
+import { ensureDefaultQueues } from './queues';
 import type { TestDatabase } from './test-database';
 
 export interface HttpResponse {
@@ -27,6 +28,7 @@ export async function startApi(
   db: TestDatabase,
   env: Record<string, string> = {},
 ): Promise<RunningApi> {
+  await ensureDefaultQueues();
   const config = loadConfig({ ...process.env, DATABASE_URL: db.appUrl, ...env });
   const app = await createHttpApplication(config, { logger: false });
   await app.listen(0, '127.0.0.1');
@@ -40,7 +42,8 @@ export async function startApi(
         method,
         headers: { 'content-type': 'application/json', ...options.headers },
         body:
-          options.rawBody ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
+          options.rawBody ??
+          (options.body === undefined ? undefined : JSON.stringify(options.body)),
       });
       const text = await response.text();
       return {
