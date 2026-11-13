@@ -115,7 +115,8 @@ The schema enforces the invariants on its own, even against hand-written SQL by 
   fast path, then one SQL transaction: wallet row lock → authoritative idempotency check → reference
   resolution → processor → transaction, ledger, wallet and outbox events → commit.
 - Submit a wager over HTTP
-- Consume a wager from SQS
+- Consume a wager from SQS: [`docs/diagrams/consume-wager-flow.md`](docs/diagrams/consume-wager-flow.md). The inbox
+  row is written in the same transaction as the effects, and the message is acked only after commit.
 - Publish outbox events
 - Resolve a pending reference
 

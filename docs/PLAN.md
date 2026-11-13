@@ -10,7 +10,7 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | 2     | Schema and migrations                 | 4     | 11         | ✅ Done |
 | 3     | Use cases                             | 6     | 17         | ✅ Done |
 | 4     | HTTP API                              | 3     | 20         | ✅ Done |
-| 5     | SQS consumer                          | 4     | 24         | ⬜      |
+| 5     | SQS consumer                          | 4     | 24         | ✅ Done |
 | 6     | Outbox relay                          | 3     | 27         | ⬜      |
 | 7     | Pending-reference worker              | 2     | 29         | ⬜      |
 | 8     | Concurrency suite                     | 5     | 34         | ⬜      |
@@ -65,11 +65,11 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 - [x] Global exception filter + Problem Details; status mapping (ADR-0009)
 - [x] `/health/ready`
 
-## Phase 5: SQS consumer
+## Phase 5: SQS consumer ✅
 
-- [ ] Long-polling consumer, inbox in the same transaction, ack after commit
-- [ ] Error classification, visibility backoff, explicit DLQ for permanent errors
-- [ ] Graceful shutdown on SIGTERM
+- [x] Long-polling consumer, inbox in the same transaction, ack after commit
+- [x] Error classification, visibility backoff, explicit DLQ for permanent errors
+- [x] Graceful shutdown on SIGTERM
 
 ## Phase 6: Outbox relay
 
