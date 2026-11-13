@@ -39,23 +39,29 @@ Each carries a `reason`:
 `MISSING_FIELD`, `UNKNOWN_KIND`, `OPENING_NOT_SUBMITTABLE`, `RESERVED_PROVIDER`, `REFERENCE_REQUIRED`,
 `REFERENCE_NOT_ALLOWED`, `SELF_REFERENCE`, `AMOUNT_MUST_BE_POSITIVE`. Invalid money raises `INVALID_MONEY`.
 
-**HTTP status mapping (all endpoints):**
+**HTTP status mapping (all endpoints, implemented in phase 4):**
 
-| Situation                                              | Status              | Body                                                              |
-| ------------------------------------------------------ | ------------------- | ----------------------------------------------------------------- |
-| Created and processed                                  | 201                 | Transaction outcome                                               |
-| Idempotent replay                                      | 200                 | Original outcome, `idempotentReplay: true`                        |
-| Accepted, waiting for a reference                      | 202                 | Outcome with `status: PENDING_REFERENCE`                          |
-| Invalid payload or missing `Idempotency-Key`           | 400                 | Problem Details with field issues                                 |
-| Resource not found (GET endpoints)                     | 404                 | Problem Details                                                   |
-| Idempotency conflict; duplicate wallet                 | 409                 | Problem Details (`IDEMPOTENCY_CONFLICT`, `WALLET_ALREADY_EXISTS`) |
-| Business rejection                                     | 422                 | Outcome with `status: REJECTED` and `failureCode`                 |
-| Transient failure (database unavailable, lock timeout) | 503 + `Retry-After` | Problem Details                                                   |
-| Unexpected error                                       | 500                 | Problem Details without internals                                 |
+| Situation                                                 | Status              | Body                                                                         |
+| --------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------- |
+| Created and processed                                     | 201                 | Transaction outcome                                                          |
+| Identical replay of a processed transaction               | 200                 | Original outcome, `idempotentReplay: true`                                   |
+| Accepted, waiting for a reference                         | 202                 | Outcome with `status: PENDING_REFERENCE` (kept on replay)                    |
+| Invalid payload, invalid money, missing `Idempotency-Key` | 400                 | Problem Details (`VALIDATION_FAILED` with `issues`, `INVALID_MONEY`, …)      |
+| Resource not found (GET endpoints, unknown routes)        | 404                 | Problem Details (`WALLET_NOT_FOUND`, `TRANSACTION_NOT_FOUND`, …)             |
+| Idempotency conflict; duplicate wallet                    | 409                 | Problem Details (`IDEMPOTENCY_CONFLICT` + `reason`, `WALLET_ALREADY_EXISTS`) |
+| Business rejection                                        | 422                 | Outcome with `status: REJECTED` and `failureCode` (kept on replay)           |
+| Unknown wallet on submission                              | 422                 | Problem Details (`WALLET_NOT_FOUND`)                                         |
+| Transient failure (database unavailable, lock timeout)    | 503 + `Retry-After` | Problem Details (`TEMPORARILY_UNAVAILABLE` + `reason`)                       |
+| Unexpected error                                          | 500                 | Problem Details without internals (`INTERNAL_ERROR`), logged                 |
+
+A replay keeps the HTTP status of its original outcome (422, 202), except PROCESSED, which is answered with 200
+because nothing new was created. The body always says `idempotentReplay`. The full reference is in
+[`docs/API.md`](../API.md).
 
 **Global exception filter.** One NestJS `ExceptionFilter`, registered with `APP_FILTER` (the analogue of
 Spring's `@ControllerAdvice`), maps error classes to a status and an RFC 9457 Problem Details body
-(`application/problem+json`: `type`, `title`, `status`, `detail`, `code`, `correlationId`). The mapping table
+(`application/problem+json`: `type` = `urn:wagering:problem:<CODE>`, `title`, `status`, `detail`, `code`,
+`correlationId`, `instance`, plus `issues`/`reason` where relevant). The mapping table
 lives in one place, which keeps it consistent across endpoints.
 
 **Validation.** Zod schemas at the edge, through NestJS 12's Standard Schema support

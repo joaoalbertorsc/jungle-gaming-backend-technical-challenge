@@ -11,7 +11,12 @@ export interface AppConfig {
   readonly roles: readonly AppRole[];
   readonly logLevel: LogLevel;
   readonly http: { readonly port: number };
-  readonly database: { readonly url: string };
+  readonly database: {
+    readonly url: string;
+    readonly poolMax: number;
+    /** Upper bound for waiting on a wallet row lock (ADR-0007). */
+    readonly lockTimeoutMs: number;
+  };
   readonly sqs: {
     readonly region: string;
     /** Set only for local emulators; undefined lets the AWS SDK resolve the real endpoint. */
@@ -44,6 +49,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   HTTP_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/, error: 'must be a postgresql:// URL' }),
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(200).default(10),
+  DB_LOCK_TIMEOUT_MS: z.coerce.number().int().min(1).max(60_000).default(2000),
   AWS_REGION: z.string().trim().min(1),
   SQS_ENDPOINT: z.url().optional(),
   WAGER_TRANSACTIONS_QUEUE: queueName('wager-transactions.fifo'),
@@ -77,7 +84,11 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): A
     roles: parsed.APP_ROLES,
     logLevel: parsed.LOG_LEVEL,
     http: { port: parsed.HTTP_PORT },
-    database: { url: parsed.DATABASE_URL },
+    database: {
+      url: parsed.DATABASE_URL,
+      poolMax: parsed.DB_POOL_MAX,
+      lockTimeoutMs: parsed.DB_LOCK_TIMEOUT_MS,
+    },
     sqs: {
       region: parsed.AWS_REGION,
       endpoint: parsed.SQS_ENDPOINT,

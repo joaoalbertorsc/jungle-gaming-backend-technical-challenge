@@ -1,35 +1,70 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import type { INestApplication } from '@nestjs/common';
-import type { Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { createHttpApplication } from '../../src/bootstrap/create-http-application';
-import { loadConfig } from '../../src/config/load-config';
+import { expectProblem, type RunningApi, startApi } from '../support/http';
+import { TestDatabase } from '../support/test-database';
 
-describe('GET /health/live', () => {
-  let app: INestApplication;
-  let baseUrl: string;
+/** §9 / §12: separate liveness and readiness, both unauthenticated. */
+describe('HTTP: health and cross-cutting behaviour', () => {
+  let db: TestDatabase;
+  let api: RunningApi;
 
   beforeAll(async () => {
-    app = await createHttpApplication(loadConfig(process.env));
-    await app.listen(0, '127.0.0.1');
-    const { port } = (app.getHttpServer() as Server).address() as AddressInfo;
-    baseUrl = `http://127.0.0.1:${String(port)}`;
+    db = await TestDatabase.create();
+    api = await startApi(db);
   });
 
   afterAll(async () => {
-    await app.close();
+    await api.close();
+    await db.drop();
   });
 
-  it('answers 200 while the process is alive', async () => {
-    const response = await fetch(`${baseUrl}/health/live`);
+  it('GET /health/live answers 200 while the process is alive', async () => {
+    const response = await api.request('GET', '/health/live');
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: 'ok' });
+    expect(response.body).toEqual({ status: 'ok' });
   });
 
-  it('does not require authentication', async () => {
-    const response = await fetch(`${baseUrl}/health/live`, { headers: {} });
+  it('GET /health/ready answers 200 when PostgreSQL and SQS are reachable', async () => {
+    const response = await api.request('GET', '/health/ready');
 
     expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: 'ok', checks: { database: 'up', sqs: 'up' } });
+  });
+
+  it('GET /health/ready answers 503 and names the failing dependency', async () => {
+    const broken = await startApi(db, { SQS_ENDPOINT: 'http://127.0.0.1:9' });
+
+    try {
+      const response = await broken.request('GET', '/health/ready');
+
+      expect(response.status).toBe(503);
+      expect(response.body).toEqual({
+        status: 'unavailable',
+        checks: { database: 'up', sqs: 'down' },
+      });
+    } finally {
+      await broken.close();
+    }
+  });
+
+  it('echoes a valid X-Correlation-Id in the response header and in Problem Details', async () => {
+    const response = await api.request('GET', `/wallets/${Bun.randomUUIDv7()}`, {
+      headers: { 'x-correlation-id': 'corr-e2e-123' },
+    });
+
+    expect(response.headers.get('x-correlation-id')).toBe('corr-e2e-123');
+    expect(response.body.correlationId).toBe('corr-e2e-123');
+  });
+
+  it('generates a correlation id when none (or an unsafe one) is sent', async () => {
+    const response = await api.request('GET', '/health/live', {
+      headers: { 'x-correlation-id': 'bad id with spaces' },
+    });
+
+    expect(response.headers.get('x-correlation-id')).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('answers unknown routes with Problem Details too', async () => {
+    expectProblem(await api.request('GET', '/nope'), 404, 'NOT_FOUND');
   });
 });

@@ -30,6 +30,23 @@ docker compose up -d --build api
 curl http://localhost:3000/health/live
 ```
 
+## Try it
+
+```bash
+# Create a wallet with 100.00 BRL
+curl -s -X POST localhost:3000/wallets -H 'content-type: application/json' \
+  -d '{"playerId":"player-1","initialBalance":{"amount":"100.00","currency":"BRL"}}'
+
+# Bet 25.00 on it (replace WALLET_ID); repeat the same call to see the idempotent replay
+curl -s -X POST localhost:3000/wagering/transactions -H 'content-type: application/json' \
+  -H 'Idempotency-Key: provider-a:tx-1' \
+  -d '{"providerId":"provider-a","externalTransactionId":"tx-1","playerId":"player-1",
+       "walletId":"WALLET_ID","roundId":"r-1","gameId":"g-1","kind":"BET",
+       "money":{"amount":"25.00","currency":"BRL"}}'
+```
+
+Endpoints, status codes and error codes: [`docs/API.md`](docs/API.md).
+
 ## Development and tests
 
 All tooling runs in the `workspace` container, with the source bind-mounted.

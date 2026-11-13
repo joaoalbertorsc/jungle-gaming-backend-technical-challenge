@@ -121,6 +121,13 @@ The schema enforces the invariants on its own, even against hand-written SQL by 
 
 ## 8. Failure handling _(phases 4–7)_
 
+- **HTTP.** One `ProblemDetailsFilter` maps every error to RFC 9457 Problem Details with a stable `code`. The
+  provider can tell apart invalid payload (400), idempotency conflict (409), business rejection (422),
+  pending (202) and transient failure (503 + `Retry-After`) by status code alone. See ADR-0009 and
+  [`docs/API.md`](docs/API.md).
+- **Correlation.** `X-Correlation-Id` is accepted when safe, minted otherwise, and echoed in responses, errors
+  and events.
+
 ## 9. Trade-offs and limitations
 
 - **Single database.** It is the consistency anchor and also the scaling ceiling. That is acceptable at this
