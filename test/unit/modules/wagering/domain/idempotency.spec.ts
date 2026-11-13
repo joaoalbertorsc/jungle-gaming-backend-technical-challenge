@@ -30,8 +30,8 @@ describe('decideIdempotency', () => {
   it('is a conflict when the provider reuses an external id under another key', () => {
     const storedUnderOtherKey = aWager(Kind.Bet);
 
-    expect(decideIdempotency(undefined, storedUnderOtherKey, storedUnderOtherKey.payloadHash)).toEqual(
-      { type: 'conflict', reason: 'EXTERNAL_ID_REUSED' },
-    );
+    expect(
+      decideIdempotency(undefined, storedUnderOtherKey, storedUnderOtherKey.payloadHash),
+    ).toEqual({ type: 'conflict', reason: 'EXTERNAL_ID_REUSED' });
   });
 });

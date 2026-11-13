@@ -9,6 +9,7 @@ import {
   outboxEventTypes,
   type TestApplication,
 } from '../../support/application';
+import { rejectionOf } from '../../support/assertions';
 import { TestDatabase } from '../../support/test-database';
 
 const brl = (amount: string) => ({ amount, currency: 'BRL' });
@@ -56,7 +57,12 @@ describe('CreateWallet', () => {
 
     const [opening] = await db.app`
       SELECT kind, status, provider_id, amount::text FROM wager_transactions WHERE wallet_id = ${wallet.id}`;
-    expect(opening).toEqual({ kind: 'OPENING', status: 'PROCESSED', provider_id: 'internal', amount: '250.00' });
+    expect(opening).toEqual({
+      kind: 'OPENING',
+      status: 'PROCESSED',
+      provider_id: 'internal',
+      amount: '250.00',
+    });
     expect(await count(db.app, 'wallet_ledger_entries', { wallet_id: wallet.id })).toBe(1);
     expect(await outboxEventTypes(db.app, [wallet.id])).toEqual(['WalletBalanceChanged']);
   });
@@ -76,16 +82,26 @@ describe('CreateWallet', () => {
 
   it('refuses a second wallet for the same player and currency', async () => {
     const playerId = newPlayer();
-    await app.createWallet.execute({ playerId, initialBalance: brl('10.00'), context: httpContext });
+    await app.createWallet.execute({
+      playerId,
+      initialBalance: brl('10.00'),
+      context: httpContext,
+    });
 
-    await expect(
-      app.createWallet.execute({ playerId, initialBalance: brl('99.00'), context: httpContext }),
-    ).rejects.toBeInstanceOf(WalletAlreadyExistsError);
+    expect(
+      await rejectionOf(
+        app.createWallet.execute({ playerId, initialBalance: brl('99.00'), context: httpContext }),
+      ),
+    ).toBeInstanceOf(WalletAlreadyExistsError);
   });
 
   it('allows the same player another currency', async () => {
     const playerId = newPlayer();
-    await app.createWallet.execute({ playerId, initialBalance: brl('10.00'), context: httpContext });
+    await app.createWallet.execute({
+      playerId,
+      initialBalance: brl('10.00'),
+      context: httpContext,
+    });
 
     const usd = await app.createWallet.execute({
       playerId,
@@ -101,9 +117,15 @@ describe('CreateWallet', () => {
     const playerId = newPlayer();
 
     try {
-      await expect(
-        failing.createWallet.execute({ playerId, initialBalance: brl('100.00'), context: httpContext }),
-      ).rejects.toThrow('injected fault');
+      expect(
+        await rejectionOf(
+          failing.createWallet.execute({
+            playerId,
+            initialBalance: brl('100.00'),
+            context: httpContext,
+          }),
+        ),
+      ).toHaveProperty('message', expect.stringContaining('injected fault'));
 
       expect(await count(db.app, 'wallets', { player_id: playerId })).toBe(0);
       expect(await count(db.app, 'wager_transactions', { player_id: playerId })).toBe(0);

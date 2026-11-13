@@ -1,8 +1,13 @@
 import { expect } from 'bun:test';
+import type { MikroORM } from '@mikro-orm/postgresql';
 import type { SQL } from 'bun';
 import { createOrm } from '../../src/infrastructure/database/create-orm';
 import { MikroOrmUnitOfWork } from '../../src/infrastructure/database/mikro-orm-unit-of-work';
-import { NoFaults, SystemClock, UuidV7Generator } from '../../src/infrastructure/system/system-adapters';
+import {
+  NoFaults,
+  SystemClock,
+  UuidV7Generator,
+} from '../../src/infrastructure/system/system-adapters';
 import { CreateWallet } from '../../src/modules/wallet/application/create-wallet';
 import { ReconcileWallet } from '../../src/modules/wallet/application/reconcile-wallet';
 import { GetWallet, GetWalletLedger } from '../../src/modules/wallet/application/wallet-queries';
@@ -56,11 +61,24 @@ export class FailAt implements FaultInjector {
 
 export const httpContext: RequestContext = { correlationId: 'corr-test', channel: 'http' };
 
+export interface TestApplication {
+  readonly orm: MikroORM;
+  readonly metrics: RecordingMetrics;
+  readonly logger: RecordingLogger;
+  readonly createWallet: CreateWallet;
+  readonly submit: SubmitWagerTransaction;
+  readonly getWallet: GetWallet;
+  readonly getLedger: GetWalletLedger;
+  readonly getTransaction: GetWagerTransaction;
+  readonly reconcile: ReconcileWallet;
+  close(): Promise<void>;
+}
+
 /** The real application services wired to real adapters on a test database. */
 export async function createTestApplication(
   db: TestDatabase,
   options: { faults?: FaultInjector; lockTimeoutMs?: number } = {},
-) {
+): Promise<TestApplication> {
   const orm = await createOrm({ url: db.appUrl, poolMax: 10 });
   const unitOfWork = new MikroOrmUnitOfWork(orm, { lockTimeoutMs: options.lockTimeoutMs ?? 2000 });
   const clock = new SystemClock();
@@ -83,8 +101,6 @@ export async function createTestApplication(
   };
 }
 
-export type TestApplication = Awaited<ReturnType<typeof createTestApplication>>;
-
 /** §13 final invariant: the stored balance equals the balance rebuilt from the ledger. */
 export async function assertLedgerMatchesBalance(sql: SQL, walletId: string): Promise<void> {
   // Compared exactly in SQL (NUMERIC), never through JavaScript numbers.
@@ -99,14 +115,21 @@ export async function assertLedgerMatchesBalance(sql: SQL, walletId: string): Pr
   expect(rows[0]).toMatchObject({ consistent: true });
 }
 
-export async function count(sql: SQL, table: string, where: Record<string, string>): Promise<number> {
+export async function count(
+  sql: SQL,
+  table: string,
+  where: Record<string, string>,
+): Promise<number> {
   const [column, value] = Object.entries(where)[0] ?? ['1', '1'];
   const rows: { n: number }[] =
     await sql`SELECT count(*)::int AS n FROM ${sql(table)} WHERE ${sql(column)} = ${value}`;
   return rows[0]?.n ?? 0;
 }
 
-export async function outboxEventTypes(sql: SQL, aggregateIds: readonly string[]): Promise<string[]> {
+export async function outboxEventTypes(
+  sql: SQL,
+  aggregateIds: readonly string[],
+): Promise<string[]> {
   const rows: { event_type: string }[] = await sql`
     SELECT event_type FROM outbox_messages WHERE aggregate_id IN ${sql(aggregateIds)}
     ORDER BY occurred_at, event_type`;

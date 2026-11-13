@@ -23,7 +23,10 @@ describe('ledger cursor', () => {
     ['valid base64 but not JSON', Buffer.from('hello').toString('base64url')],
     ['wrong version', Buffer.from(JSON.stringify({ v: 2, after: 1 })).toString('base64url')],
     ['negative position', Buffer.from(JSON.stringify({ v: 1, after: -1 })).toString('base64url')],
-    ['fractional position', Buffer.from(JSON.stringify({ v: 1, after: 1.5 })).toString('base64url')],
+    [
+      'fractional position',
+      Buffer.from(JSON.stringify({ v: 1, after: 1.5 })).toString('base64url'),
+    ],
   ])('rejects %s', (_label, cursor) => {
     expect(() => decodeLedgerCursor(cursor)).toThrow(InvalidCursorError);
   });

@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import type { SubmitWagerTransactionCommand } from '../../../src/modules/wagering/application/submit-wager-transaction';
+import { FailureCode } from '../../../src/modules/wagering/domain/failure-code';
+import { WagerTransactionStatus as Status } from '../../../src/modules/wagering/domain/wager-transaction';
 import { InvalidWagerTransactionError } from '../../../src/modules/wagering/domain/wagering-errors';
 import {
   IdempotencyConflictError,
@@ -15,6 +17,7 @@ import {
   outboxEventTypes,
   type TestApplication,
 } from '../../support/application';
+import { rejectionOf } from '../../support/assertions';
 import { TestDatabase } from '../../support/test-database';
 
 const brl = (amount: string) => ({ amount, currency: 'BRL' });
@@ -72,14 +75,19 @@ describe('SubmitWagerTransaction', () => {
 
       expect(outcome).toEqual({
         transactionId: expect.any(String),
-        status: 'PROCESSED',
+        status: Status.Processed,
         balance: brl('975.00'),
         idempotentReplay: false,
       });
-      expect(await count(db.app, 'wallet_ledger_entries', { transaction_id: outcome.transactionId })).toBe(1);
-      expect(await outboxEventTypes(db.app, [outcome.transactionId, wallet.id])).toEqual([
-        'WalletBalanceChanged',
+      expect(
+        await count(db.app, 'wallet_ledger_entries', { transaction_id: outcome.transactionId }),
+      ).toBe(1);
+      expect(await outboxEventTypes(db.app, [outcome.transactionId])).toEqual([
         'WagerTransactionProcessed',
+      ]);
+      // Opening credit + this debit.
+      expect(await outboxEventTypes(db.app, [wallet.id])).toEqual([
+        'WalletBalanceChanged',
         'WalletBalanceChanged',
       ]);
       await assertLedgerMatchesBalance(db.app, wallet.id);
@@ -92,13 +100,17 @@ describe('SubmitWagerTransaction', () => {
 
       expect(outcome).toEqual({
         transactionId: expect.any(String),
-        status: 'REJECTED',
-        failureCode: 'INSUFFICIENT_FUNDS',
+        status: Status.Rejected,
+        failureCode: FailureCode.InsufficientFunds,
         balance: brl('20.00'),
         idempotentReplay: false,
       });
-      expect(await count(db.app, 'wallet_ledger_entries', { transaction_id: outcome.transactionId })).toBe(0);
-      expect(await outboxEventTypes(db.app, [outcome.transactionId])).toEqual(['WagerTransactionRejected']);
+      expect(
+        await count(db.app, 'wallet_ledger_entries', { transaction_id: outcome.transactionId }),
+      ).toBe(0);
+      expect(await outboxEventTypes(db.app, [outcome.transactionId])).toEqual([
+        'WagerTransactionRejected',
+      ]);
       await assertLedgerMatchesBalance(db.app, wallet.id);
     });
   });
@@ -114,8 +126,12 @@ describe('SubmitWagerTransaction', () => {
 
       expect(replay).toEqual({ ...first, idempotentReplay: true });
       expect(replay.balance).toEqual(brl('70.00'));
-      expect(await count(db.app, 'wallet_ledger_entries', { transaction_id: first.transactionId })).toBe(1);
-      expect(await outboxEventTypes(db.app, [first.transactionId])).toEqual(['WagerTransactionProcessed']);
+      expect(
+        await count(db.app, 'wallet_ledger_entries', { transaction_id: first.transactionId }),
+      ).toBe(1);
+      expect(await outboxEventTypes(db.app, [first.transactionId])).toEqual([
+        'WagerTransactionProcessed',
+      ]);
       expect(app.metrics.calls).toContain('replay:http');
     });
 
@@ -132,7 +148,7 @@ describe('SubmitWagerTransaction', () => {
       const bet = command(wallet);
       await app.submit.execute(bet);
 
-      await expect(app.submit.execute({ ...bet, money: brl('26.00') })).rejects.toMatchObject({
+      expect(await rejectionOf(app.submit.execute({ ...bet, money: brl('26.00') }))).toMatchObject({
         constructor: IdempotencyConflictError,
         reason: 'PAYLOAD_MISMATCH',
       });
@@ -144,9 +160,14 @@ describe('SubmitWagerTransaction', () => {
       const bet = command(wallet);
       await app.submit.execute(bet);
 
-      await expect(
-        app.submit.execute({ ...bet, idempotencyKey: `other:${bet.externalTransactionId}` }),
-      ).rejects.toMatchObject({ constructor: IdempotencyConflictError, reason: 'EXTERNAL_ID_REUSED' });
+      expect(
+        await rejectionOf(
+          app.submit.execute({ ...bet, idempotencyKey: `other:${bet.externalTransactionId}` }),
+        ),
+      ).toMatchObject({
+        constructor: IdempotencyConflictError,
+        reason: 'EXTERNAL_ID_REUSED',
+      });
     });
   });
 
@@ -157,8 +178,12 @@ describe('SubmitWagerTransaction', () => {
       const outcome = await app.submit.execute(command(wallet, { kind: 'LOSS' }));
 
       expect(outcome).toMatchObject({ status: 'PROCESSED', balance: brl('100.00') });
-      expect(await count(db.app, 'wallet_ledger_entries', { transaction_id: outcome.transactionId })).toBe(0);
-      expect(await outboxEventTypes(db.app, [outcome.transactionId])).toEqual(['WagerTransactionProcessed']);
+      expect(
+        await count(db.app, 'wallet_ledger_entries', { transaction_id: outcome.transactionId }),
+      ).toBe(0);
+      expect(await outboxEventTypes(db.app, [outcome.transactionId])).toEqual([
+        'WagerTransactionProcessed',
+      ]);
     });
 
     it('WIN referencing the round BET credits the wallet', async () => {
@@ -204,11 +229,17 @@ describe('SubmitWagerTransaction', () => {
       const bet = command(wallet);
       await app.submit.execute(bet);
       await app.submit.execute(
-        command(wallet, { kind: 'REFUND', referenceExternalTransactionId: bet.externalTransactionId }),
+        command(wallet, {
+          kind: 'REFUND',
+          referenceExternalTransactionId: bet.externalTransactionId,
+        }),
       );
 
       const rollback = await app.submit.execute(
-        command(wallet, { kind: 'ROLLBACK', referenceExternalTransactionId: bet.externalTransactionId }),
+        command(wallet, {
+          kind: 'ROLLBACK',
+          referenceExternalTransactionId: bet.externalTransactionId,
+        }),
       );
 
       expect(rollback).toMatchObject({ status: 'REJECTED', failureCode: 'ALREADY_REVERSED' });
@@ -279,30 +310,42 @@ describe('SubmitWagerTransaction', () => {
     it('refuses an unknown wallet without persisting anything', async () => {
       const ghost = { id: Bun.randomUUIDv7(), playerId: 'nobody' };
 
-      await expect(app.submit.execute(command(ghost))).rejects.toBeInstanceOf(UnknownWalletError);
+      expect(await rejectionOf(app.submit.execute(command(ghost)))).toBeInstanceOf(
+        UnknownWalletError,
+      );
       expect(await count(db.app, 'wager_transactions', { wallet_id: ghost.id })).toBe(0);
     });
 
     it('refuses OPENING from outside', async () => {
       const wallet = await openWallet('100.00');
 
-      await expect(app.submit.execute(command(wallet, { kind: 'OPENING' }))).rejects.toBeInstanceOf(
-        InvalidWagerTransactionError,
-      );
+      expect(
+        await rejectionOf(app.submit.execute(command(wallet, { kind: 'OPENING' }))),
+      ).toBeInstanceOf(InvalidWagerTransactionError);
     });
   });
 
   describe('atomicity and transient failures', () => {
     it('a failure before commit leaves no transaction, entry, balance change or event', async () => {
-      const failing = await createTestApplication(db, { faults: new FailAt('wager.before-commit') });
+      const failing = await createTestApplication(db, {
+        faults: new FailAt('wager.before-commit'),
+      });
       const wallet = await openWallet('100.00');
       const bet = command(wallet);
 
       try {
-        await expect(failing.submit.execute(bet)).rejects.toThrow('injected fault');
+        expect(await rejectionOf(failing.submit.execute(bet))).toHaveProperty(
+          'message',
+          expect.stringContaining('injected fault'),
+        );
 
-        expect(await count(db.app, 'wager_transactions', { external_transaction_id: bet.externalTransactionId })).toBe(0);
-        const [row] = await db.app`SELECT balance::text, version FROM wallets WHERE id = ${wallet.id}`;
+        expect(
+          await count(db.app, 'wager_transactions', {
+            external_transaction_id: bet.externalTransactionId,
+          }),
+        ).toBe(0);
+        const [row] =
+          await db.app`SELECT balance::text, version FROM wallets WHERE id = ${wallet.id}`;
         expect(row).toEqual({ balance: '100.00', version: 1 });
         expect(await outboxEventTypes(db.app, [wallet.id])).toEqual(['WalletBalanceChanged']);
       } finally {
@@ -319,14 +362,14 @@ describe('SubmitWagerTransaction', () => {
         await holder`BEGIN`;
         await holder`SELECT id FROM wallets WHERE id = ${wallet.id} FOR UPDATE`;
 
-        await expect(impatient.submit.execute(command(wallet))).rejects.toMatchObject({
+        expect(await rejectionOf(impatient.submit.execute(command(wallet)))).toMatchObject({
           constructor: TransientInfrastructureError,
           reason: 'LOCK_TIMEOUT',
         });
         expect(impatient.metrics.calls).toContain('lock-conflict');
       } finally {
         await holder`ROLLBACK`;
-        holder.release();
+        await holder.release();
         await impatient.close();
       }
     });

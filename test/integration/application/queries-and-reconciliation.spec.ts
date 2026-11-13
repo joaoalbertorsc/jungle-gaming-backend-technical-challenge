@@ -3,7 +3,12 @@ import {
   InvalidCursorError,
   ResourceNotFoundError,
 } from '../../../src/shared/application/application-errors';
-import { createTestApplication, httpContext, type TestApplication } from '../../support/application';
+import {
+  createTestApplication,
+  httpContext,
+  type TestApplication,
+} from '../../support/application';
+import { rejectionOf } from '../../support/assertions';
 import { TestDatabase } from '../../support/test-database';
 
 const brl = (amount: string) => ({ amount, currency: 'BRL' });
@@ -63,7 +68,7 @@ describe('queries and reconciliation', () => {
     });
 
     it('raises a not-found error for an unknown wallet', async () => {
-      await expect(app.getWallet.execute(Bun.randomUUIDv7())).rejects.toBeInstanceOf(
+      expect(await rejectionOf(app.getWallet.execute(Bun.randomUUIDv7()))).toBeInstanceOf(
         ResourceNotFoundError,
       );
     });
@@ -80,11 +85,13 @@ describe('queries and reconciliation', () => {
         cursor: first.nextCursor ?? undefined,
       });
 
-      expect(first.entries.map((e) => [e.walletVersion, e.direction, e.balanceAfter.amount])).toEqual([
+      expect(
+        first.entries.map((e) => [e.walletVersion, e.direction, e.balanceAfter.amount]),
+      ).toEqual([
         [1, 'CREDIT', '100.00'],
         [2, 'DEBIT', '90.00'],
       ]);
-      expect(first.nextCursor).toEqual(expect.any(String));
+      expect(typeof first.nextCursor).toBe('string');
       expect(second.entries.map((e) => e.balanceAfter.amount)).toEqual(['70.00']);
       expect(second.nextCursor).toBeNull();
     });
@@ -92,15 +99,17 @@ describe('queries and reconciliation', () => {
     it('rejects a malformed cursor', async () => {
       const { wallet } = await walletWithBets([]);
 
-      await expect(
-        app.getLedger.execute({ walletId: wallet.id, limit: 10, cursor: 'bogus!' }),
-      ).rejects.toBeInstanceOf(InvalidCursorError);
+      expect(
+        await rejectionOf(
+          app.getLedger.execute({ walletId: wallet.id, limit: 10, cursor: 'bogus!' }),
+        ),
+      ).toBeInstanceOf(InvalidCursorError);
     });
 
     it('raises a not-found error for an unknown wallet', async () => {
-      await expect(
-        app.getLedger.execute({ walletId: Bun.randomUUIDv7(), limit: 10 }),
-      ).rejects.toBeInstanceOf(ResourceNotFoundError);
+      expect(
+        await rejectionOf(app.getLedger.execute({ walletId: Bun.randomUUIDv7(), limit: 10 })),
+      ).toBeInstanceOf(ResourceNotFoundError);
     });
   });
 
@@ -126,12 +135,12 @@ describe('queries and reconciliation', () => {
     });
 
     it('raises a not-found error for unknown transactions', async () => {
-      await expect(app.getTransaction.byId(Bun.randomUUIDv7())).rejects.toBeInstanceOf(
+      expect(await rejectionOf(app.getTransaction.byId(Bun.randomUUIDv7()))).toBeInstanceOf(
         ResourceNotFoundError,
       );
-      await expect(
-        app.getTransaction.byProviderExternalId('provider-a', 'never-sent'),
-      ).rejects.toBeInstanceOf(ResourceNotFoundError);
+      expect(
+        await rejectionOf(app.getTransaction.byProviderExternalId('provider-a', 'never-sent')),
+      ).toBeInstanceOf(ResourceNotFoundError);
     });
   });
 
@@ -173,7 +182,7 @@ describe('queries and reconciliation', () => {
     });
 
     it('raises a not-found error for an unknown wallet', async () => {
-      await expect(app.reconcile.execute(Bun.randomUUIDv7())).rejects.toBeInstanceOf(
+      expect(await rejectionOf(app.reconcile.execute(Bun.randomUUIDv7()))).toBeInstanceOf(
         ResourceNotFoundError,
       );
     });
