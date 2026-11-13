@@ -19,6 +19,24 @@ describe('loadConfig', () => {
       expect(config.logLevel).toBe('info');
     });
 
+    it('bounds database waits: pool of 10 and a 2 s wallet lock timeout', () => {
+      expect(loadConfig(minimalEnv).database).toEqual({
+        url: minimalEnv.DATABASE_URL,
+        poolMax: 10,
+        lockTimeoutMs: 2000,
+      });
+    });
+
+    it('accepts database tuning overrides and rejects nonsense', () => {
+      const tuned = loadConfig({ ...minimalEnv, DB_POOL_MAX: '25', DB_LOCK_TIMEOUT_MS: '250' });
+
+      expect(tuned.database).toMatchObject({ poolMax: 25, lockTimeoutMs: 250 });
+      expect(() => loadConfig({ ...minimalEnv, DB_LOCK_TIMEOUT_MS: '0' })).toThrow(
+        ConfigValidationError,
+      );
+      expect(() => loadConfig({ ...minimalEnv, DB_POOL_MAX: '-1' })).toThrow(ConfigValidationError);
+    });
+
     it('uses the queue names defined by the challenge', () => {
       expect(loadConfig(minimalEnv).sqs.queues).toEqual({
         wagerTransactions: 'wager-transactions.fifo',
