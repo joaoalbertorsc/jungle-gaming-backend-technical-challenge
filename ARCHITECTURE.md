@@ -85,12 +85,29 @@ The challenge leaves room for interpretation in a few places (§7 asks for them 
    `REFERENCE_NOT_PROCESSED`.
 4. **Zero amounts** are accepted only for LOSS. Every balance-moving kind requires a positive amount.
 5. **Money input** accepts 0 to 2 decimals (`25`, `25.5`, `25.00`) and always serializes with 2. More
-   decimals are rejected, never rounded. Amounts have at most 17 integer digits, to fit `NUMERIC(19,2)`.
+   decimals are rejected, never rounded. Amounts have at most 17 integer digits, matching the `money_amount` domain.
 6. **Provider id `internal` is reserved** for the OPENING transaction, so external submissions cannot use it.
 7. **Ledger entries carry the wallet version** they produced. That version is gap-free per wallet, starts at 1,
    and backs the proposed version-chain constraint and a stable ledger cursor (ADR-0006, ADR-0013).
 
-## 6. Data model _(phase 2)_
+## 6. Data model
+
+Five tables: `wallets`, `wager_transactions`, `wallet_ledger_entries`, `inbox_messages` and
+`outbox_messages`. They are created by four hand-written, reversible migrations
+(`src/infrastructure/database/migrations/`). The ER diagram, indexes and roles are in
+[`docs/diagrams/data-model.md`](docs/diagrams/data-model.md).
+
+The schema enforces the invariants on its own, even against hand-written SQL by the schema owner (ADR-0006):
+
+- **Money.** `money_amount` and `currency_code` domains: non-negative, at most 2 decimals rejected instead of
+  rounded, ISO-4217.
+- **Uniqueness.** One wallet per player and currency. Idempotency keys and provider ids are unique. A reference
+  has at most one processed reversal.
+- **Immutability.** The ledger is append-only (no `UPDATE`/`DELETE`/`TRUNCATE`, even for the owner). Terminal
+  transactions are frozen, and business columns never change. Wallets and transactions are never deleted.
+- **Balance == ledger.** A chain trigger requires each entry to continue the previous version and balance. A
+  deferred constraint trigger checks at commit that each wallet balance equals the ledger entry of its version.
+- **Least privilege.** The runtime role cannot run DDL and cannot update or delete history.
 
 ## 7. Main flows _(phases 3–7)_
 

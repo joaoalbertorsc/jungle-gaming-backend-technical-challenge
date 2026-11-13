@@ -49,7 +49,9 @@ docker compose run --rm workspace bun run test:e2e
 ```
 
 Integration and e2e suites run against real PostgreSQL and MiniStack containers, which `workspace` starts
-automatically. They fail, never skip, when the infrastructure is unavailable.
+automatically. They fail, never skip, when the infrastructure is unavailable. Each test file runs in its own
+throwaway database (`test_*`), cloned from a migrated template (`wagering_template`). Run
+`docker compose down --volumes` to reset everything.
 
 ## Useful commands
 

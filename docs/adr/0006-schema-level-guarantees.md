@@ -1,6 +1,6 @@
 # ADR-0006: Invariants enforced by the database schema
 
-- Status: Accepted. The version-chain enforcement below is Proposed and will be evaluated in phase 2.
+- Status: Accepted. The ledger version chain was adopted in phase 2.
 - Date: 2026-11-12
 
 ## Context
@@ -37,14 +37,45 @@ because it reverses the REFUND (a different reference), not the BET.
 - `wagering_app` is the runtime role and has DML only. It has no `UPDATE`/`DELETE` on the ledger, so even
   buggy code cannot rewrite history.
 
-**Proposed: ledger version chain.**
+**Ledger version chain (adopted in phase 2).**
 
 - Each ledger entry stores the wallet version it produced, with `UNIQUE (wallet_id, wallet_version)`.
-- A `DEFERRABLE INITIALLY DEFERRED` constraint trigger on `wallets` checks at commit that every balance change
-  has a matching ledger entry (same version, `balance_after` equal to the new balance).
-- The database would then guarantee "every balance change has a ledger entry, and vice versa" (§6.2), and the
-  gap-free version would also make a stable ledger cursor (ADR-0013).
-- It is adopted in phase 2 if its complexity stays reasonable.
+- A `BEFORE INSERT` trigger on the ledger (`wallet_ledger_entries_chain`) requires every entry to continue
+  the previous one: next version, and `balance_before` equal to the previous `balance_after`. The first entry
+  must start from zero, at version 1 (OPENING credit) or 2 (first movement of a wallet opened at zero). The
+  entry currency must match the wallet's (`wallet_ledger_entries_currency`).
+- A `DEFERRABLE INITIALLY DEFERRED` constraint trigger on `wallets` (`wallets_balance_matches_ledger`) checks
+  at commit that the balance equals the ledger entry of its version. The only exception is a zero balance at
+  version 1.
+- An immediate `BEFORE UPDATE` guard (`wallets_version_tracks_balance`) requires the version to grow by exactly
+  1 with every balance change, and only then.
+- Together these make "balance == ledger replay" (§6.2, §13) a **database invariant**. A wallet cannot hold a
+  balance that its ledger does not explain, not even through hand-written SQL. The gap-free version is also
+  the ledger cursor key (ADR-0013).
+
+**Money domains.** `money_amount` (`NUMERIC` checked for >= 0, scale <= 2, < 10^17) and `currency_code`
+(`CHAR(3)`, `^[A-Z]{3}$`) are reused by every monetary column. They reject what `Money.from` rejects, and they
+do not round.
+
+**Trigger-raised errors** use SQLSTATE `23514` (`check_violation`) with a named constraint, so they read and
+map exactly like declarative CHECKs:
+
+| Constraint name                         | Raised when                                                       |
+| --------------------------------------- | ----------------------------------------------------------------- |
+| `wallets_immutable_columns`             | `id`, `player_id`, `currency` or `created_at` changes             |
+| `wallets_version_tracks_balance`        | Balance and version do not move together (+1)                     |
+| `wallets_balance_matches_ledger`        | At commit, the balance differs from its version's ledger entry    |
+| `wallets_no_delete`                     | `DELETE` / `TRUNCATE` on wallets                                  |
+| `wager_transactions_terminal_immutable` | Any change to a `PROCESSED`, `REJECTED` or `FAILED` row           |
+| `wager_transactions_immutable_columns`  | A business column (payload, money, ids, kind, key) changes        |
+| `wager_transactions_transition`         | A status change outside the allowed transitions (§6.3)            |
+| `wager_transactions_no_delete`          | `DELETE` / `TRUNCATE` on transactions                             |
+| `wallet_ledger_entries_append_only`     | `UPDATE` / `DELETE` / `TRUNCATE` on the ledger, even by the owner |
+| `wallet_ledger_entries_chain`           | An entry that does not continue the previous version and balance  |
+| `wallet_ledger_entries_currency`        | An entry in another currency than its wallet                      |
+
+All of them are covered by `test/integration/database/*.schema.spec.ts`. The data model diagram is in
+[`docs/diagrams/data-model.md`](../diagrams/data-model.md).
 
 ## Consequences
 

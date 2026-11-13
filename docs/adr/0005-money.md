@@ -27,7 +27,8 @@ inputs must be rejected, and the domain must not depend on ORM types (§6.1).
 - **Serialization.** `toJSON()` / `toString()` always print 2 decimals (`{ "amount": "25.00", "currency": "BRL" }`).
 - **Currency.** The code must be 3 uppercase letters. Operations across currencies throw a domain
   `CurrencyMismatchError`. The model is multi-currency, and BRL is the only currency used in practice.
-- **Persistence.** `NUMERIC(19,2)` plus `CHAR(3)` (ADR-0004).
+- **Persistence.** The `money_amount` and `currency_code` domains (ADR-0004, ADR-0006). The database applies
+  the same rules as `Money.from`, so it rejects a third decimal instead of rounding it.
 
 ## Consequences
 
