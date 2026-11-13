@@ -13,10 +13,13 @@ import { ReconcileWallet } from '../../src/modules/wallet/application/reconcile-
 import { GetWallet, GetWalletLedger } from '../../src/modules/wallet/application/wallet-queries';
 import { SubmitWagerTransaction } from '../../src/modules/wagering/application/submit-wager-transaction';
 import { GetWagerTransaction } from '../../src/modules/wagering/application/wager-transaction-queries';
+import type { UnitOfWork } from '../../src/shared/application/unit-of-work';
 import type {
   ApplicationLogger,
   ApplicationMetrics,
+  Clock,
   FaultInjector,
+  IdGenerator,
   FaultPoint,
   RequestContext,
 } from '../../src/shared/application/ports';
@@ -35,6 +38,15 @@ export class RecordingMetrics implements ApplicationMetrics {
   }
   reconciliationMismatch(): void {
     this.calls.push('reconciliation-mismatch');
+  }
+  duplicateMessage(consumer: string): void {
+    this.calls.push(`duplicate:${consumer}`);
+  }
+  messageRetried(reason: string): void {
+    this.calls.push(`retry:${reason}`);
+  }
+  deadLettered(reason: string): void {
+    this.calls.push(`dead-letter:${reason}`);
   }
 }
 
@@ -63,6 +75,9 @@ export const httpContext: RequestContext = { correlationId: 'corr-test', channel
 
 export interface TestApplication {
   readonly orm: MikroORM;
+  readonly unitOfWork: UnitOfWork;
+  readonly clock: Clock;
+  readonly ids: IdGenerator;
   readonly metrics: RecordingMetrics;
   readonly logger: RecordingLogger;
   readonly createWallet: CreateWallet;
@@ -89,6 +104,9 @@ export async function createTestApplication(
 
   return {
     orm,
+    unitOfWork,
+    clock,
+    ids,
     metrics,
     logger,
     createWallet: new CreateWallet(unitOfWork, ids, clock, faults),
