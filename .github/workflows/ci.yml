@@ -41,7 +41,8 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      # Reports go to test-results/ (not gitignored): dorny/test-reporter discovers files through git.
+      # Bun silently skips the JUnit file when its folder does not exist, so create it first.
+      - run: mkdir -p test-results
       - run: bun test test/unit --coverage --reporter=junit --reporter-outfile=test-results/unit.xml
       - name: Unit test report
         if: ${{ !cancelled() }}
@@ -60,7 +61,8 @@ jobs:
       - name: Run suites inside the workspace container
         run: >
           docker compose run --rm workspace sh -c
-          "bun install --frozen-lockfile &&
+          "mkdir -p test-results &&
+          bun install --frozen-lockfile &&
           bun test test/integration test/e2e --timeout 30000
           --reporter=junit --reporter-outfile=test-results/infra.xml"
       - name: Integration test report
