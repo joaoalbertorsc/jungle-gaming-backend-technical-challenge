@@ -6,7 +6,7 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | Phase | Deliverable                           | Hours | Cumulative | Status  |
 | ----- | ------------------------------------- | ----- | ---------- | ------- |
 | 0     | Project setup                         | 3     | 3          | ✅ Done |
-| 1     | Domain model                          | 4     | 7          | ⬜      |
+| 1     | Domain model                          | 4     | 7          | ✅ Done |
 | 2     | Schema and migrations                 | 4     | 11         | ⬜      |
 | 3     | Use cases                             | 6     | 17         | ⬜      |
 | 4     | HTTP API                              | 3     | 20         | ⬜      |
@@ -32,16 +32,16 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 - [x] CI: quality, unit, infra (compose), image build; PR template
 - [x] ADRs, diagrams, plan and traceability matrix
 
-## Phase 1: Domain model
+## Phase 1: Domain model ✅
 
-- [ ] `Money` (parsing, arithmetic, comparisons, currency mismatch, serialization)
-- [ ] `Wallet` aggregate (open, debit, credit, version rules, invariants)
-- [ ] `WalletLedgerEntry` (structural immutability, balanced arithmetic)
-- [ ] `WagerTransaction` (state machine, reference rules per kind, payload match)
-- [ ] Business rules per kind (BET, WIN, LOSS, REFUND, ROLLBACK) and failure-code taxonomy
-- [ ] `IntegrationEvent` base class and the four events; `InboxMessage`, `OutboxMessage`
-- [ ] Canonical JSON + `payloadHash`
-- [ ] Dependency-rule test (the domain imports nothing from frameworks)
+- [x] `Money` (parsing, arithmetic, comparisons, currency mismatch, serialization)
+- [x] `Wallet` aggregate (open, debit, credit, version rules, invariants)
+- [x] `WalletLedgerEntry` (structural immutability, balanced arithmetic)
+- [x] `WagerTransaction` (state machine, reference rules per kind, payload match)
+- [x] Business rules per kind (BET, WIN, LOSS, REFUND, ROLLBACK) and failure-code taxonomy
+- [x] `IntegrationEvent` base class and the four events; `InboxMessage`, `OutboxMessage`
+- [x] Canonical JSON + `payloadHash`
+- [x] Dependency-rule test (the domain imports nothing from frameworks)
 
 ## Phase 2: Schema and migrations
 
