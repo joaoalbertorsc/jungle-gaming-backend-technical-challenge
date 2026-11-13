@@ -29,7 +29,10 @@ describe('HTTP: wagering', () => {
     return response.body as { id: string; playerId: string };
   }
 
-  function payload(wallet: { id: string; playerId: string }, overrides: Record<string, unknown> = {}) {
+  function payload(
+    wallet: { id: string; playerId: string },
+    overrides: Record<string, unknown> = {},
+  ) {
     return {
       providerId: 'provider-a',
       externalTransactionId: `tx-${Bun.randomUUIDv7()}`,
@@ -163,11 +166,7 @@ describe('HTTP: wagering', () => {
     it('rejects scientific notation as INVALID_MONEY', async () => {
       const wallet = await openWallet('10.00');
 
-      expectProblem(
-        await submit(payload(wallet, { money: brl('1e2') })),
-        400,
-        'INVALID_MONEY',
-      );
+      expectProblem(await submit(payload(wallet, { money: brl('1e2') })), 400, 'INVALID_MONEY');
     });
   });
 
