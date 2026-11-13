@@ -37,6 +37,25 @@ describe('loadConfig', () => {
       expect(() => loadConfig({ ...minimalEnv, DB_POOL_MAX: '-1' })).toThrow(ConfigValidationError);
     });
 
+    it('tunes the consumer for production by default (20 s long poll, 10 per batch)', () => {
+      expect(loadConfig(minimalEnv).sqs.consumer).toEqual({
+        waitTimeSeconds: 20,
+        maxMessages: 10,
+        drainTimeoutMs: 15_000,
+        retryBaseMs: 1_000,
+        retryMaxMs: 60_000,
+      });
+    });
+
+    it('rejects consumer settings SQS does not allow', () => {
+      expect(() => loadConfig({ ...minimalEnv, SQS_WAIT_TIME_SECONDS: '21' })).toThrow(
+        ConfigValidationError,
+      );
+      expect(() => loadConfig({ ...minimalEnv, SQS_MAX_MESSAGES: '11' })).toThrow(
+        ConfigValidationError,
+      );
+    });
+
     it('uses the queue names defined by the challenge', () => {
       expect(loadConfig(minimalEnv).sqs.queues).toEqual({
         wagerTransactions: 'wager-transactions.fifo',

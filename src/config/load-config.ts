@@ -26,6 +26,16 @@ export interface AppConfig {
       readonly wagerTransactionsDlq: string;
       readonly wageringEvents: string;
     };
+    readonly consumer: {
+      /** SQS long poll (0–20 s). */
+      readonly waitTimeSeconds: number;
+      /** Messages per ReceiveMessage (1–10). */
+      readonly maxMessages: number;
+      /** How long a SIGTERM waits for in-flight messages. */
+      readonly drainTimeoutMs: number;
+      readonly retryBaseMs: number;
+      readonly retryMaxMs: number;
+    };
   };
 }
 
@@ -56,6 +66,11 @@ const envSchema = z.object({
   WAGER_TRANSACTIONS_QUEUE: queueName('wager-transactions.fifo'),
   WAGER_TRANSACTIONS_DLQ: queueName('wager-transactions-dlq.fifo'),
   WAGERING_EVENTS_QUEUE: queueName('wagering-events.fifo'),
+  SQS_WAIT_TIME_SECONDS: z.coerce.number().int().min(0).max(20).default(20),
+  SQS_MAX_MESSAGES: z.coerce.number().int().min(1).max(10).default(10),
+  CONSUMER_DRAIN_TIMEOUT_MS: z.coerce.number().int().min(0).max(300_000).default(15_000),
+  SQS_RETRY_BASE_MS: z.coerce.number().int().min(1).max(60_000).default(1_000),
+  SQS_RETRY_MAX_MS: z.coerce.number().int().min(1).max(43_200_000).default(60_000),
 });
 
 export class ConfigValidationError extends Error {
@@ -96,6 +111,13 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): A
         wagerTransactions: parsed.WAGER_TRANSACTIONS_QUEUE,
         wagerTransactionsDlq: parsed.WAGER_TRANSACTIONS_DLQ,
         wageringEvents: parsed.WAGERING_EVENTS_QUEUE,
+      },
+      consumer: {
+        waitTimeSeconds: parsed.SQS_WAIT_TIME_SECONDS,
+        maxMessages: parsed.SQS_MAX_MESSAGES,
+        drainTimeoutMs: parsed.CONSUMER_DRAIN_TIMEOUT_MS,
+        retryBaseMs: parsed.SQS_RETRY_BASE_MS,
+        retryMaxMs: Math.max(parsed.SQS_RETRY_MAX_MS, parsed.SQS_RETRY_BASE_MS),
       },
     },
   };

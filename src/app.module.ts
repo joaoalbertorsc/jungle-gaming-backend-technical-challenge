@@ -6,13 +6,19 @@ import { DatabaseModule } from './infrastructure/database/database.module';
 import { SqsModule } from './infrastructure/messaging/sqs.module';
 import { SystemModule } from './infrastructure/system/system.module';
 import { HealthModule } from './modules/health/health.module';
+import { WagerConsumerModule } from './modules/wagering/interface/sqs/wager-consumer.module';
 import { WageringModule } from './modules/wagering/wagering.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { ProblemDetailsFilter } from './shared/interface/http/problem-details.filter';
 
+/**
+ * One image, several roles (ADR-0001): the HTTP modules are always present (controllers stay idle
+ * without an HTTP server); worker modules are added only for the roles this process runs.
+ */
 @Module({})
 export class AppModule {
   static forRoot(config: AppConfig): DynamicModule {
+    const workers = config.roles.includes('consumer') ? [WagerConsumerModule] : [];
     return {
       module: AppModule,
       imports: [
@@ -23,6 +29,7 @@ export class AppModule {
         HealthModule,
         WalletModule,
         WageringModule,
+        ...workers,
       ],
       providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
     };
