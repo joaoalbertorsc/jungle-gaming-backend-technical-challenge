@@ -7,11 +7,11 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 
 ## §2 Authentication
 
-| ID    | Requirement                                                 | Enforced by        | Tests                         | Status                      |
-| ----- | ----------------------------------------------------------- | ------------------ | ----------------------------- | --------------------------- |
-| R-2.1 | Health endpoints are unauthenticated                        | `HealthController` | `test/e2e/health.e2e.spec.ts` | 🟡 live done, ready pending |
-| R-2.2 | Auth decision documented, explicit extension point in code  | ADR-0014           | —                             | 🟡 documented               |
-| R-2.3 | Provider identity in messages still validated by the domain |                    |                               | ⬜                          |
+| ID    | Requirement                                                 | Enforced by                   | Tests                         | Status        |
+| ----- | ----------------------------------------------------------- | ----------------------------- | ----------------------------- | ------------- |
+| R-2.1 | Health endpoints are unauthenticated                        | `HealthController` (no guard) | `test/e2e/health.e2e.spec.ts` | ✅            |
+| R-2.2 | Auth decision documented, explicit extension point in code  | ADR-0014                      | —                             | 🟡 documented |
+| R-2.3 | Provider identity in messages still validated by the domain |                               |                               | ⬜            |
 
 ## §3 Global invariants
 
@@ -105,20 +105,20 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 
 ## §9 HTTP API
 
-| ID     | Requirement                                                                         | Enforced by                                                                                      | Tests                                                                                      | Status       |
-| ------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ------------ |
-| R-9.1  | `POST /wallets` with OPENING + CREDIT in the same transaction; duplicate → conflict | `CreateWallet` (OPENING + CREDIT in one transaction, conflict on duplicate); endpoint in phase 4 | `test/integration/application/create-wallet.spec.ts`                                       | 🟡           |
-| R-9.2  | `GET /wallets/:walletId`                                                            | `GetWallet`; endpoint in phase 4                                                                 | `test/integration/application/queries-and-reconciliation.spec.ts`                          | 🟡           |
-| R-9.3  | `GET /wallets/:walletId/ledger` with a stable, opaque cursor                        | `GetWalletLedger` with opaque keyset cursor; endpoint in phase 4                                 | `test/integration/application/queries-and-reconciliation.spec.ts`, ledger-cursor unit spec | 🟡           |
-| R-9.4  | `GET /wagering/transactions/:transactionId`                                         | `GetWagerTransaction.byId`; endpoint in phase 4                                                  | `test/integration/application/queries-and-reconciliation.spec.ts`                          | 🟡           |
-| R-9.5  | `GET /providers/:providerId/wagering/transactions/:externalTransactionId`           | `GetWagerTransaction.byProviderExternalId`; endpoint in phase 4                                  | `test/integration/application/queries-and-reconciliation.spec.ts`                          | 🟡           |
-| R-9.6  | `POST /wagering/transactions` requires `Idempotency-Key`                            |                                                                                                  |                                                                                            | ⬜           |
-| R-9.7  | `payloadHash` = hash of canonical JSON of business fields; algorithm documented     | ADR-0008                                                                                         |                                                                                            | 🟡           |
-| R-9.8  | Identical request → same response with `idempotentReplay: true`                     | Replay with `idempotentReplay: true`; HTTP in phase 4                                            | `test/integration/application/submit-wager-transaction.spec.ts`                            | 🟡           |
-| R-9.9  | Same key, different payload → conflict, not replay                                  | `IdempotencyConflictError`; HTTP 409 in phase 4                                                  | `test/integration/application/submit-wager-transaction.spec.ts`                            | 🟡           |
-| R-9.10 | Distinct, consistent status codes for the five situations                           | ADR-0009                                                                                         |                                                                                            | 🟡           |
-| R-9.11 | Reconciliation endpoint; divergences logged, metered, flagged, never corrected      | `ReconcileWallet` (snapshot, log + metric + flag, never corrects); endpoint in phase 4           | `test/integration/application/queries-and-reconciliation.spec.ts`                          | 🟡           |
-| R-9.12 | `GET /health/live` and `GET /health/ready`                                          | `HealthController`                                                                               | `test/e2e/health.e2e.spec.ts`                                                              | 🟡 live only |
+| ID     | Requirement                                                                         | Enforced by                                                               | Tests                                                                                          | Status |
+| ------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------ |
+| R-9.1  | `POST /wallets` with OPENING + CREDIT in the same transaction; duplicate → conflict | `POST /wallets` → `CreateWallet`                                          | `test/e2e/wallets.e2e.spec.ts`, create-wallet integration spec                                 | ✅     |
+| R-9.2  | `GET /wallets/:walletId`                                                            | `GET /wallets/:walletId`                                                  | `test/e2e/wallets.e2e.spec.ts`                                                                 | ✅     |
+| R-9.3  | `GET /wallets/:walletId/ledger` with a stable, opaque cursor                        | `GET /wallets/:walletId/ledger` (keyset cursor)                           | `test/e2e/wallets.e2e.spec.ts`, queries integration spec                                       | ✅     |
+| R-9.4  | `GET /wagering/transactions/:transactionId`                                         | `GET /wagering/transactions/:transactionId`                               | `test/e2e/wagering.e2e.spec.ts`                                                                | ✅     |
+| R-9.5  | `GET /providers/:providerId/wagering/transactions/:externalTransactionId`           | `GET /providers/:providerId/wagering/transactions/:externalTransactionId` | `test/e2e/wagering.e2e.spec.ts`                                                                | ✅     |
+| R-9.6  | `POST /wagering/transactions` requires `Idempotency-Key`                            | `WagerTransactionsController` requires `Idempotency-Key`                  | `test/e2e/wagering.e2e.spec.ts`                                                                | ✅     |
+| R-9.7  | `payloadHash` = hash of canonical JSON of business fields; algorithm documented     | ADR-0008                                                                  |                                                                                                | 🟡     |
+| R-9.8  | Identical request → same response with `idempotentReplay: true`                     | Replay → 200 (processed) or original status, `idempotentReplay: true`     | `test/e2e/wagering.e2e.spec.ts`                                                                | ✅     |
+| R-9.9  | Same key, different payload → conflict, not replay                                  | `IdempotencyConflictError` → 409 + `reason`                               | `test/e2e/wagering.e2e.spec.ts`                                                                | ✅     |
+| R-9.10 | Distinct, consistent status codes for the five situations                           | `ProblemDetailsFilter` + `httpStatusFor` (ADR-0009, `docs/API.md`)        | `test/e2e/wagering.e2e.spec.ts`, `test/e2e/wallets.e2e.spec.ts`, `test/e2e/health.e2e.spec.ts` | ✅     |
+| R-9.11 | Reconciliation endpoint; divergences logged, metered, flagged, never corrected      | `POST /wallets/:walletId/reconciliation`                                  | `test/e2e/wallets.e2e.spec.ts`, queries integration spec                                       | ✅     |
+| R-9.12 | `GET /health/live` and `GET /health/ready`                                          | `GET /health/live`, `GET /health/ready` (database + SQS probes)           | `test/e2e/health.e2e.spec.ts`                                                                  | ✅     |
 
 ## §10 SQS processing
 
@@ -145,12 +145,12 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 
 ## §12 Observability
 
-| ID     | Requirement                                                                    | Enforced by | Tests | Status |
-| ------ | ------------------------------------------------------------------------------ | ----------- | ----- | ------ |
-| R-12.1 | JSON logs with correlationId, messageId, transactionId, walletId, providerId   |             |       | ⬜     |
-| R-12.2 | No sensitive data or full financial payloads in logs                           |             |       | ⬜     |
-| R-12.3 | Metrics: status, duplicates, retries, DLQ, lock conflicts, outbox lag, latency |             |       | ⬜     |
-| R-12.4 | Separate liveness and readiness                                                |             |       | 🟡     |
+| ID     | Requirement                                                                    | Enforced by                       | Tests                         | Status |
+| ------ | ------------------------------------------------------------------------------ | --------------------------------- | ----------------------------- | ------ |
+| R-12.1 | JSON logs with correlationId, messageId, transactionId, walletId, providerId   |                                   |                               | ⬜     |
+| R-12.2 | No sensitive data or full financial payloads in logs                           |                                   |                               | ⬜     |
+| R-12.3 | Metrics: status, duplicates, retries, DLQ, lock conflicts, outbox lag, latency |                                   |                               | ⬜     |
+| R-12.4 | Separate liveness and readiness                                                | Separate live and ready endpoints | `test/e2e/health.e2e.spec.ts` | ✅     |
 
 ## §13 Mandatory tests
 
@@ -181,7 +181,7 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 
 | ID  | Requirement                                                  | Evidence                                                                                              | Status |
 | --- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------ |
-| D-1 | `README.md` with setup and commands                          | `README.md`                                                                                           | 🟡     |
+| D-1 | `README.md` with setup and commands                          | `README.md` (setup, commands, curl examples), `docs/API.md`                                           | 🟡     |
 | D-2 | `ARCHITECTURE.md` with decisions, trade-offs and limitations | `ARCHITECTURE.md`, `docs/adr/`                                                                        | 🟡     |
 | E-1 | No `number` for money                                        | `Money` (`bigint`), `money_amount` domain (no float, no rounding)                                     | ✅     |
 | E-2 | No negative balance caused by a race                         |                                                                                                       | ⬜     |

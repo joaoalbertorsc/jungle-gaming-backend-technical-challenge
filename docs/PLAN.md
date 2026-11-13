@@ -9,7 +9,7 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | 1     | Domain model                          | 4     | 7          | ✅ Done |
 | 2     | Schema and migrations                 | 4     | 11         | ✅ Done |
 | 3     | Use cases                             | 6     | 17         | ✅ Done |
-| 4     | HTTP API                              | 3     | 20         | ⬜      |
+| 4     | HTTP API                              | 3     | 20         | ✅ Done |
 | 5     | SQS consumer                          | 4     | 24         | ⬜      |
 | 6     | Outbox relay                          | 3     | 27         | ⬜      |
 | 7     | Pending-reference worker              | 2     | 29         | ⬜      |
@@ -58,12 +58,12 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 - [x] Queries (wallet, ledger cursor, transaction by id and by provider id)
 - [x] `ReconcileWallet`
 
-## Phase 4: HTTP API
+## Phase 4: HTTP API ✅
 
-- [ ] Nest wiring of the use cases (factories, no decorators in the application layer)
-- [ ] Controllers and Zod schemas (Standard Schema pipe)
-- [ ] Global exception filter + Problem Details; status mapping (ADR-0009)
-- [ ] `/health/ready`
+- [x] Nest wiring of the use cases (factories, no decorators in the application layer)
+- [x] Controllers and Zod schemas (Standard Schema pipe)
+- [x] Global exception filter + Problem Details; status mapping (ADR-0009)
+- [x] `/health/ready`
 
 ## Phase 5: SQS consumer
 
