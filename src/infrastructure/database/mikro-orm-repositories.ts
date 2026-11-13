@@ -1,5 +1,6 @@
 import { type EntityManager, LockMode } from '@mikro-orm/postgresql';
-import type { OutboxRepository } from '../../modules/messaging/application/ports';
+import type { InboxRepository, OutboxRepository } from '../../modules/messaging/application/ports';
+import type { InboxMessage } from '../../modules/messaging/domain/inbox-message';
 import type { OutboxMessage } from '../../modules/messaging/domain/outbox-message';
 import type { WagerTransactionRepository } from '../../modules/wagering/application/ports';
 import {
@@ -16,12 +17,15 @@ import type { Wallet } from '../../modules/wallet/domain/wallet';
 import type { WalletLedgerEntry } from '../../modules/wallet/domain/wallet-ledger-entry';
 import type { Repositories } from '../../shared/application/unit-of-work';
 import {
+  InboxMessageRecord,
   LedgerEntryRecord,
   OutboxMessageRecord,
   WagerTransactionRecord,
   WalletRecord,
 } from './entities';
 import {
+  inboxMessageFromRecord,
+  inboxMessageToRecord,
   ledgerEntryFromRecord,
   ledgerEntryToRecord,
   outboxMessageToRecord,
@@ -164,11 +168,25 @@ class MikroOrmOutboxRepository implements OutboxRepository {
   }
 }
 
+class MikroOrmInboxRepository implements InboxRepository {
+  constructor(private readonly em: EntityManager) {}
+
+  async find(consumerName: string, messageId: string): Promise<InboxMessage | undefined> {
+    const record = await this.em.findOne(InboxMessageRecord, { consumerName, messageId });
+    return record === null ? undefined : inboxMessageFromRecord(record);
+  }
+
+  record(message: InboxMessage): void {
+    this.em.persist(this.em.create(InboxMessageRecord, inboxMessageToRecord(message)));
+  }
+}
+
 export function mikroOrmRepositories(em: EntityManager): Repositories {
   return {
     wallets: new MikroOrmWalletRepository(em),
     ledger: new MikroOrmLedgerRepository(em),
     transactions: new MikroOrmWagerTransactionRepository(em),
     outbox: new MikroOrmOutboxRepository(em),
+    inbox: new MikroOrmInboxRepository(em),
   };
 }

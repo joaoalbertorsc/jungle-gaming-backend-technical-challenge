@@ -64,6 +64,14 @@ export class LedgerEntryRecord {
   createdAt!: Date;
 }
 
+export class InboxMessageRecord {
+  consumerName!: string;
+  messageId!: string;
+  payloadHash!: string;
+  receivedAt!: Date;
+  processedAt!: Date | null;
+}
+
 export class OutboxMessageRecord {
   id!: string;
   aggregateId!: string;
@@ -158,9 +166,22 @@ export const OutboxMessageSchema = new EntitySchema<OutboxMessageRecord>({
   },
 });
 
+export const InboxMessageSchema = new EntitySchema<InboxMessageRecord>({
+  class: InboxMessageRecord,
+  tableName: 'inbox_messages',
+  properties: {
+    consumerName: { type: 'string', primary: true },
+    messageId: { type: 'string', primary: true },
+    payloadHash: { type: 'string' },
+    receivedAt: timestamp,
+    processedAt: nullableTimestamp,
+  },
+});
+
 export const ENTITY_SCHEMAS = [
   WalletSchema,
   WagerTransactionSchema,
   LedgerEntrySchema,
   OutboxMessageSchema,
+  InboxMessageSchema,
 ];

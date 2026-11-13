@@ -51,6 +51,27 @@ exhausted to `wager-transactions-dlq.fifo`.
 **Graceful shutdown.** On `SIGTERM`: stop polling, let in-flight messages finish within a drain timeout, then
 `ChangeMessageVisibility(0)` on anything left so another instance takes it immediately.
 
+## Implementation notes (phase 5)
+
+- **Fingerprint.** The inbox `payload_hash` is the SHA-256 of the canonical JSON of the whole parsed
+  message, so formatting differences never count as a different payload.
+- **Replays.** `SubmitWagerTransaction` receives the inbox entry and records it **inside** its transaction,
+  before the idempotency decision. A replay therefore also writes its inbox row, which is why the lock-free
+  fast path is skipped for queue messages.
+- **Concurrent copies.** A commit that fails on `inbox_messages_pkey` means another consumer won. That counts
+  as a duplicate and is acked.
+- **DLQ attributes.** `dlq-reason`, `dlq-detail` (truncated) and `source-message-id`. The reasons are
+  `MALFORMED_MESSAGE`, `INVALID_MESSAGE`, `IDEMPOTENCY_CONFLICT` and `MESSAGE_ID_REUSED`. Messages
+  dead-lettered by the redrive policy keep their original body.
+- **Unknown wallet** is acked: it is a business rejection, and redelivery cannot fix it.
+- **Retry backoff.** `SQS_RETRY_BASE_MS` (default 1 s) doubling up to `SQS_RETRY_MAX_MS` (60 s), applied as
+  the message visibility.
+- **Ordering.** Groups are processed in parallel and messages within a group in order; producers should use
+  `MessageGroupId = walletId`.
+- **Process.** `APP_ROLES=consumer` runs a Nest application context without HTTP. The consumer drains in
+  `beforeApplicationShutdown`, before the database closes.
+- **Flow diagram:** [`docs/diagrams/consume-wager-flow.md`](../diagrams/consume-wager-flow.md).
+
 ## Consequences
 
 - If the process dies after commit and before ack, the redelivered message hits the inbox and is acked, with

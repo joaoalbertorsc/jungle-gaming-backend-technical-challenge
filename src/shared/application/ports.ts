@@ -12,7 +12,7 @@ export interface IdGenerator {
  * Named points where tests can inject a failure (e.g. a crash just before commit). Production uses
  * a no-op implementation; nothing outside tests can trigger a fault (ADR-0017).
  */
-export type FaultPoint = 'wager.before-commit' | 'wallet.before-commit';
+export type FaultPoint = 'wager.before-commit' | 'wallet.before-commit' | 'consumer.before-ack';
 
 export interface FaultInjector {
   hit(point: FaultPoint): void;
@@ -38,6 +38,12 @@ export interface ApplicationMetrics {
   idempotentReplay(channel: string): void;
   lockConflict(): void;
   reconciliationMismatch(): void;
+  /** A message already recorded in the inbox arrived again. */
+  duplicateMessage(consumer: string): void;
+  /** A message was left for redelivery after a transient failure. */
+  messageRetried(reason: string): void;
+  /** A message was moved to the dead-letter queue. */
+  deadLettered(reason: string): void;
 }
 
 export const CLOCK = Symbol('CLOCK');

@@ -40,6 +40,15 @@ export class NoopMetrics implements ApplicationMetrics {
   reconciliationMismatch(): void {
     // no-op
   }
+  duplicateMessage(): void {
+    // no-op
+  }
+  messageRetried(): void {
+    // no-op
+  }
+  deadLettered(): void {
+    // no-op
+  }
 }
 
 /** Minimal structured logger until pino lands (phase 9): one JSON line per entry. */

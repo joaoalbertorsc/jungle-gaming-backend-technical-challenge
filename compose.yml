@@ -73,6 +73,18 @@ services:
       sqs-init:
         condition: service_completed_successfully
 
+  # Worker role: consumes wager-transactions.fifo (scale with --scale consumer=3).
+  consumer:
+    <<: *app-image
+    environment:
+      <<: *app-env
+      APP_ROLES: consumer
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      sqs-init:
+        condition: service_completed_successfully
+
   # Tooling container: dependency install, lint, typecheck and every test suite.
   # The source is bind-mounted, so nothing needs to be installed on the host.
   workspace:

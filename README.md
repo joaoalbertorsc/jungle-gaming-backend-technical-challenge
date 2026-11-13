@@ -78,6 +78,7 @@ throwaway database (`test_*`), cloned from a migrated template (`wagering_templa
 | `docker compose run --rm workspace bun run migration:down` | Revert the last migration (test database) |
 | `docker compose run --rm sqs-init`                         | (Re)create the queues                     |
 | `docker compose logs -f api`                               | Follow API logs                           |
+| `docker compose up -d --scale consumer=3 consumer`         | Run three SQS consumer instances          |
 | `docker compose down --volumes`                            | Stop everything and drop the data volumes |
 
 ## Host ports
