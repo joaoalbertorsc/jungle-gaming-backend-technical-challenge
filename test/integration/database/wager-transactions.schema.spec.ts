@@ -25,6 +25,8 @@ describe('schema: wager_transactions', () => {
 
   const tx = (overrides: Row = {}) => transactionRow(wallet, overrides);
   const insertTx = (row: Row) => insert(db.app, 'wager_transactions', row);
+  /** Undecided rows need no resolved reference or completion time, so each test breaks one rule only. */
+  const undecided = { status: 'PENDING', completed_at: null };
 
   describe('idempotency', () => {
     it('rejects a second transaction with the same idempotency key', async () => {
@@ -73,10 +75,10 @@ describe('schema: wager_transactions', () => {
     });
 
     it('a BET cannot carry a reference', async () => {
-      await expectViolation(() => insertTx(tx({ reference_external_transaction_id: 'ext-x' })), {
-        sqlState: '23514',
-        constraint: 'wager_transactions_reference_not_allowed',
-      });
+      await expectViolation(
+        () => insertTx(tx({ ...undecided, reference_external_transaction_id: 'ext-x' })),
+        { sqlState: '23514', constraint: 'wager_transactions_reference_not_allowed' },
+      );
     });
 
     it('a transaction cannot reference itself', async () => {
@@ -84,6 +86,7 @@ describe('schema: wager_transactions', () => {
         () =>
           insertTx(
             tx({
+              ...undecided,
               kind: 'REFUND',
               external_transaction_id: 'ext-self',
               reference_external_transaction_id: 'ext-self',
@@ -115,7 +118,7 @@ describe('schema: wager_transactions', () => {
 
     it.each([
       ['kind', { kind: 'JACKPOT' }, 'wager_transactions_kind_valid'],
-      ['status', { status: 'DONE' }, 'wager_transactions_status_valid'],
+      ['status', { status: 'DONE', completed_at: null }, 'wager_transactions_status_valid'],
       [
         'failure_code',
         { status: 'REJECTED', failure_code: 'BAD_LUCK' },
