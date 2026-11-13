@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+env:
+  BUN_VERSION: 1.4.4
+
+jobs:
+  quality:
+    name: Quality (guards, format, lint, typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - name: No focused or skipped tests
+        run: bun run check:focused-tests
+      - run: bun run format:check
+      - run: bun run lint
+      - run: bun run typecheck
+
+  unit:
+    name: Unit tests (with coverage threshold)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      # Bun silently skips the JUnit file when its folder does not exist, so create it first.
+      - run: mkdir -p test-results
+      - run: bun test test/unit --coverage --reporter=junit --reporter-outfile=test-results/unit.xml
+      - name: Unit test report
+        if: ${{ !cancelled() }}
+        uses: dorny/test-reporter@v3
+        with:
+          name: Unit test results
+          path: test-results/unit.xml
+          reporter: java-junit
+
+  infra:
+    name: Integration and e2e tests (real Postgres + SQS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Same containers and command as a local run: `docker compose run --rm workspace ...`.
+      - name: Run suites inside the workspace container
+        run: >
+          docker compose run --rm workspace sh -c
+          "mkdir -p test-results &&
+          bun install --frozen-lockfile &&
+          bun test test/integration test/e2e --timeout 30000
+          --reporter=junit --reporter-outfile=test-results/infra.xml"
+      - name: Integration test report
+        if: ${{ !cancelled() }}
+        uses: dorny/test-reporter@v3
+        with:
+          name: Integration and e2e test results
+          path: test-results/infra.xml
+          reporter: java-junit
+      - name: Container logs on failure
+        if: ${{ failure() }}
+        run: docker compose logs --no-color postgres ministack
+      - name: Tear down
+        if: ${{ always() }}
+        run: docker compose down --volumes
+
+  image:
+    name: Production image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --target runtime --tag wagering-app:ci .
