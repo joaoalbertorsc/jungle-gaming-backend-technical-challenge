@@ -165,9 +165,9 @@ describe('Wallet', () => {
     });
 
     it.each([
-      ['debit', (wallet: Wallet, money: Money) => wallet.canDebit(money)],
+      ['canDebit', (wallet: Wallet, money: Money) => wallet.canDebit(money)],
       ['credit', (wallet: Wallet, money: Money) => wallet.credit({ ...movement('1.00'), money })],
-      ['canDebit', (wallet: Wallet, money: Money) => wallet.debit({ ...movement('1.00'), money })],
+      ['debit', (wallet: Wallet, money: Money) => wallet.debit({ ...movement('1.00'), money })],
     ])('%s refuses another currency', (_operation, operation) => {
       const { wallet } = openWallet();
       const usd = Money.from({ amount: '1.00', currency: 'USD' });
