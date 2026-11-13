@@ -18,7 +18,7 @@
     "test:integration": "bun test test/integration --timeout 30000",
     "test:e2e": "bun test test/e2e --timeout 30000",
     "test:infra": "bun test test/integration test/e2e --timeout 30000",
-    "verify": "bun run check:focused-tests && bun run format:check && bun run lint && bun run typecheck && bun run test",
+    "verify": "bun run check:focused-tests && bun run format:check && bun run lint && bun run typecheck && bun run test:unit:coverage && bun run test:infra",
     "migration:up": "bun run scripts/migrate.ts up",
     "migration:down": "bun run scripts/migrate.ts down",
     "migration:pending": "bun run scripts/migrate.ts pending",
