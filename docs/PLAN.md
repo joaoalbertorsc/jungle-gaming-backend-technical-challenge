@@ -7,7 +7,7 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | ----- | ------------------------------------- | ----- | ---------- | ------- |
 | 0     | Project setup                         | 3     | 3          | ✅ Done |
 | 1     | Domain model                          | 4     | 7          | ✅ Done |
-| 2     | Schema and migrations                 | 4     | 11         | ⬜      |
+| 2     | Schema and migrations                 | 4     | 11         | ✅ Done |
 | 3     | Use cases                             | 6     | 17         | ⬜      |
 | 4     | HTTP API                              | 3     | 20         | ⬜      |
 | 5     | SQS consumer                          | 4     | 24         | ⬜      |
@@ -43,12 +43,12 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 - [x] Canonical JSON + `payloadHash`
 - [x] Dependency-rule test (the domain imports nothing from frameworks)
 
-## Phase 2: Schema and migrations
+## Phase 2: Schema and migrations ✅
 
-- [ ] Constraint tests first (negative balance, duplicate wallet, ledger update/delete, double reversal, ...)
-- [ ] Migrations for every table, with `up` and `down`, grants for the app role, immutability triggers
-- [ ] Decide on the ledger version-chain trigger (ADR-0006, Proposed)
-- [ ] Per-test-file template database harness
+- [x] Constraint tests first (negative balance, duplicate wallet, ledger update/delete, double reversal, ...)
+- [x] Migrations for every table, with `up` and `down`, grants for the app role, immutability triggers
+- [x] Ledger version-chain trigger adopted (ADR-0006)
+- [x] Per-test-file template database harness
 
 ## Phase 3: Use cases
 

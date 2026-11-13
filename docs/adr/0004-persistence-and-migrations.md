@@ -20,7 +20,9 @@ evaluated (§5.9): constraints, partial indexes and triggers are central.
 - **Transaction strategy.** Each use case runs inside a transaction-runner port, implemented with
   `em.transactional()` on a forked `EntityManager`. Every repository call made in that use case shares that
   transaction: inbox, transaction, wallet, ledger and outbox all commit or roll back together.
-- **Money mapping.** `NUMERIC(19,2)` plus `CHAR(3)` columns. PostgreSQL returns `NUMERIC` as a string, and the
+- **Money mapping.** A `money_amount` domain (`NUMERIC` checked for >= 0, at most 2 decimals and 17 integer
+  digits) plus a `currency_code` domain (`CHAR(3)`, ISO-4217). A `NUMERIC(19,2)` typmod was rejected because it
+  silently rounds `1.005` to `1.01`. PostgreSQL returns `NUMERIC` as a string, and the
   mapper turns it into `Money` (ADR-0005). No floating point anywhere in the path.
 - **Migrations.**
   - MikroORM Migrator with **hand-written SQL** (`this.addSql(...)`) and explicit `up()` and `down()` in every file.
