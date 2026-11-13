@@ -17,13 +17,19 @@ Uniqueness, immutability and non-negativity must be enforced **in the schema**, 
 | `wallets`               | Version starts at 1                                          | `CHECK (version >= 1)`                                                                       |
 | `wager_transactions`    | Idempotency                                                  | `UNIQUE (idempotency_key)` and `UNIQUE (provider_id, external_transaction_id)`               |
 | `wager_transactions`    | Reversals carry a reference                                  | `CHECK (kind NOT IN ('REFUND','ROLLBACK') OR reference_external_transaction_id IS NOT NULL)` |
-| `wager_transactions`    | A reference is reverted at most once per kind                | Partial unique index on `(reference_transaction_id, kind)` for processed `REFUND`/`ROLLBACK` |
+| `wager_transactions`    | A reference is reversed at most once in total (see below)    | Partial unique index on `(reference_transaction_id)` for processed `REFUND`/`ROLLBACK`       |
 | `wager_transactions`    | Terminal states never change; business columns are immutable | Trigger rejecting such updates                                                               |
 | `wallet_ledger_entries` | Append-only                                                  | Trigger rejecting `UPDATE`/`DELETE`; the app role also lacks those privileges                |
 | `wallet_ledger_entries` | Entry arithmetic is balanced                                 | `CHECK (balance_after = balance_before ± amount)` by direction; `CHECK (amount > 0)`         |
 | `wallet_ledger_entries` | At most one entry per wallet per transaction                 | `UNIQUE (transaction_id, wallet_id)`                                                         |
 | `inbox_messages`        | Deduplication                                                | `PRIMARY KEY (consumer_name, message_id)`                                                    |
 | `outbox_messages`       | Efficient relay claims                                       | Partial index on `next_attempt_at` where `published_at IS NULL`                              |
+
+**Single reversal, stricter than §7 rule 4 (decided in phase 1).** The rule says a reference cannot be
+reverted twice _by the same kind_. Read literally, a BET could then be refunded once **and** rolled back once,
+and both credits would apply. That is a duplicated credit, which §3 forbids. So the index is on
+`reference_transaction_id` alone: one effective reversal per reference. A ROLLBACK of a REFUND is still allowed,
+because it reverses the REFUND (a different reference), not the BET.
 
 **Two database roles.**
 

@@ -51,18 +51,57 @@ See [`docs/diagrams/module-structure.md`](docs/diagrams/module-structure.md) and
 | SQS emulator               | MiniStack (no auth token), proven by a contract suite                        | [0016](docs/adr/0016-sqs-emulator.md)                      |
 | Testing                    | TDD; real Postgres + SQS; ≥ 3 processes; ledger invariant on every test      | [0017](docs/adr/0017-testing-strategy.md)                  |
 
-## 5. Data model _(phase 2)_
+## 5. Domain model
 
-## 6. Main flows _(phases 3–7)_
+All domain classes are plain TypeScript (no NestJS, ORM or SDK imports; enforced by
+`test/unit/architecture/dependency-rule.spec.ts`). Constructors are private: `create`/`open`/`enqueue`
+validate, and `rehydrate` rebuilds persisted state without re-validating (§6.0).
+
+| Class                            | Module    | Responsibility                                                                    |
+| -------------------------------- | --------- | --------------------------------------------------------------------------------- |
+| `Money`                          | shared    | Exact `bigint` minor units, strict decimal-string contract, currency-checked math |
+| `IntegrationEvent`               | shared    | Abstract envelope; subclasses fix `eventType` and `version`                       |
+| `Wallet`                         | wallet    | Balance, version, the only source of ledger entries                               |
+| `WalletLedgerEntry`              | wallet    | Frozen ledger line; `create` validates its arithmetic                             |
+| `WagerTransaction`               | wagering  | Per-kind creation rules, state machine, payload hash, replay snapshot             |
+| `WagerTransactionProcessor`      | wagering  | Stateless domain service applying §7 against a locked wallet                      |
+| `InboxMessage` / `OutboxMessage` | messaging | Persistent dedup record; publishable event with retry backoff                     |
+
+The state machine, the processor's decision order and the rules per kind are drawn in
+[`docs/diagrams/wager-transaction-states.md`](docs/diagrams/wager-transaction-states.md).
+
+### Documented interpretations
+
+The challenge leaves room for interpretation in a few places (§7 asks for them to be documented):
+
+1. **One reversal per reference, in total.** §7 rule 4 forbids reverting a reference twice _by the same kind_.
+   Taken literally, a BET could be refunded **and** rolled back, crediting it twice. That violates "no
+   duplicated credits" (§3). A reference is therefore reversed at most once, by a REFUND or a ROLLBACK. A
+   ROLLBACK of a REFUND is still allowed, because it reverses the REFUND, not the BET.
+2. **WIN and LOSS may reference the round BET.** When they do, the reference is validated like any other
+   (same context, kind BET, processed). The amount does not have to match.
+3. **A reference that exists but is undecided** (`PENDING` / `PENDING_REFERENCE`) makes the dependent
+   transaction wait, exactly like a missing one. A reference that ended `REJECTED` / `FAILED` is final:
+   `REFERENCE_NOT_PROCESSED`.
+4. **Zero amounts** are accepted only for LOSS. Every balance-moving kind requires a positive amount.
+5. **Money input** accepts 0 to 2 decimals (`25`, `25.5`, `25.00`) and always serializes with 2. More
+   decimals are rejected, never rounded. Amounts have at most 17 integer digits, to fit `NUMERIC(19,2)`.
+6. **Provider id `internal` is reserved** for the OPENING transaction, so external submissions cannot use it.
+7. **Ledger entries carry the wallet version** they produced. That version is gap-free per wallet, starts at 1,
+   and backs the proposed version-chain constraint and a stable ledger cursor (ADR-0006, ADR-0013).
+
+## 6. Data model _(phase 2)_
+
+## 7. Main flows _(phases 3–7)_
 
 - Submit a wager over HTTP
 - Consume a wager from SQS
 - Publish outbox events
 - Resolve a pending reference
 
-## 7. Failure handling _(phases 4–7)_
+## 8. Failure handling _(phases 4–7)_
 
-## 8. Trade-offs and limitations
+## 9. Trade-offs and limitations
 
 - **Single database.** It is the consistency anchor and also the scaling ceiling. That is acceptable at this
   scope; sharding by wallet would be the next step.
