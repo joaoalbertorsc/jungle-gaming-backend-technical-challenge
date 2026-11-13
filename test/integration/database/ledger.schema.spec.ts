@@ -59,10 +59,13 @@ describe('schema: wallet_ledger_entries', () => {
     it('rejects DELETE, even for the schema owner', async () => {
       const { entryId } = await walletWithOneDebit();
 
-      await expectViolation(() => db.owner`DELETE FROM wallet_ledger_entries WHERE id = ${entryId}`, {
-        sqlState: '23514',
-        constraint: 'wallet_ledger_entries_append_only',
-      });
+      await expectViolation(
+        () => db.owner`DELETE FROM wallet_ledger_entries WHERE id = ${entryId}`,
+        {
+          sqlState: '23514',
+          constraint: 'wallet_ledger_entries_append_only',
+        },
+      );
     });
 
     it('rejects TRUNCATE, even for the schema owner', async () => {
@@ -98,10 +101,10 @@ describe('schema: wallet_ledger_entries', () => {
     it('rejects a zero amount', async () => {
       const wallet = await openWallet(db.app, '100.00');
 
-      await expectViolation(
-        () => addEntry(wallet, { amount: '0.00', balance_after: '100.00' }),
-        { sqlState: '23514', constraint: 'wallet_ledger_entries_amount_positive' },
-      );
+      await expectViolation(() => addEntry(wallet, { amount: '0.00', balance_after: '100.00' }), {
+        sqlState: '23514',
+        constraint: 'wallet_ledger_entries_amount_positive',
+      });
     });
 
     it('rejects an unknown direction', async () => {

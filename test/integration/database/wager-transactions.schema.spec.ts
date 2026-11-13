@@ -33,10 +33,13 @@ describe('schema: wager_transactions', () => {
       const first = tx({ kind: 'LOSS' });
       await insertTx(first);
 
-      await expectViolation(() => insertTx(tx({ kind: 'LOSS', idempotency_key: first.idempotency_key ?? null })), {
-        sqlState: '23505',
-        constraint: 'wager_transactions_idempotency_key_key',
-      });
+      await expectViolation(
+        () => insertTx(tx({ kind: 'LOSS', idempotency_key: first.idempotency_key ?? null })),
+        {
+          sqlState: '23505',
+          constraint: 'wager_transactions_idempotency_key_key',
+        },
+      );
     });
 
     it('rejects a second transaction with the same provider and external id', async () => {
