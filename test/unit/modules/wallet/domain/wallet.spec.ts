@@ -77,7 +77,12 @@ describe('Wallet', () => {
 
     it('requires the opening transaction ids when the initial balance is positive', () => {
       expect(() =>
-        Wallet.open({ id: 'wallet-1', playerId: 'player-1', initialBalance: brl('1.00'), at: openedAt }),
+        Wallet.open({
+          id: 'wallet-1',
+          playerId: 'player-1',
+          initialBalance: brl('1.00'),
+          at: openedAt,
+        }),
       ).toThrow(InvalidWalletOperationError);
     });
 

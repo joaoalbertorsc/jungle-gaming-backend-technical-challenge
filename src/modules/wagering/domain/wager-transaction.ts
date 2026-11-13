@@ -289,7 +289,10 @@ export class WagerTransaction {
         throw new InvalidTransactionStateError(this.id, 'LOSS has no ledger effect');
       case Kind.Rollback: {
         if (reference === undefined || !reference.affectsBalance()) {
-          throw new InvalidTransactionStateError(this.id, 'ROLLBACK needs a balance-moving reference');
+          throw new InvalidTransactionStateError(
+            this.id,
+            'ROLLBACK needs a balance-moving reference',
+          );
         }
         return reference.ledgerDirectionFor() === LedgerDirection.Debit
           ? LedgerDirection.Credit
@@ -373,7 +376,7 @@ function assertCreatable(props: CreateWagerTransactionProps): void {
     throw new InvalidWagerTransactionError('OPENING_NOT_SUBMITTABLE', 'OPENING is internal');
   }
   if (!SUBMITTABLE_KINDS.has(props.kind)) {
-    throw new InvalidWagerTransactionError('UNKNOWN_KIND', `unknown kind ${String(props.kind)}`);
+    throw new InvalidWagerTransactionError('UNKNOWN_KIND', `unknown kind ${props.kind}`);
   }
   if (props.providerId === INTERNAL_PROVIDER_ID) {
     throw new InvalidWagerTransactionError('RESERVED_PROVIDER', 'provider id is reserved');
@@ -398,7 +401,10 @@ function assertCreatable(props: CreateWagerTransactionProps): void {
       );
     }
     if (reference === props.externalTransactionId) {
-      throw new InvalidWagerTransactionError('SELF_REFERENCE', 'a transaction cannot reference itself');
+      throw new InvalidWagerTransactionError(
+        'SELF_REFERENCE',
+        'a transaction cannot reference itself',
+      );
     }
   }
 

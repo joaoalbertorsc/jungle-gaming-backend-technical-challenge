@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { WalletBalanceChanged } from '../../../../../src/modules/wallet/domain/events/wallet-balance-changed';
 import { Wallet } from '../../../../../src/modules/wallet/domain/wallet';
 import { InvalidWalletOperationError } from '../../../../../src/modules/wallet/domain/wallet-errors';
+import { LedgerDirection } from '../../../../../src/modules/wallet/domain/wallet-ledger-entry';
 import { brl, T0, T1 } from '../../../../support/builders/wagering';
 
 const context = { eventId: 'event-1', correlationId: 'corr-1', occurredAt: T1 };
@@ -14,7 +15,12 @@ function walletWithDebit() {
     openingCredit: { entryId: 'entry-0', transactionId: 'tx-0' },
     at: T0,
   });
-  const entry = wallet.debit({ entryId: 'entry-1', transactionId: 'tx-1', money: brl('25.00'), at: T1 });
+  const entry = wallet.debit({
+    entryId: 'entry-1',
+    transactionId: 'tx-1',
+    money: brl('25.00'),
+    at: T1,
+  });
   return { wallet, entry };
 }
 
@@ -34,7 +40,7 @@ describe('WalletBalanceChanged', () => {
       data: {
         walletId: 'wallet-1',
         transactionId: 'tx-1',
-        direction: 'DEBIT',
+        direction: LedgerDirection.Debit,
         money: { amount: '25.00', currency: 'BRL' },
         balanceBefore: { amount: '1000.00', currency: 'BRL' },
         balanceAfter: { amount: '975.00', currency: 'BRL' },

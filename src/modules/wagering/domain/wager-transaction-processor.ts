@@ -141,7 +141,10 @@ export class WagerTransactionProcessor {
 
   private assertProcessable(transaction: WagerTransaction, wallet: Wallet): void {
     if (transaction.walletId !== wallet.id) {
-      throw new InvalidTransactionStateError(transaction.id, `does not belong to wallet ${wallet.id}`);
+      throw new InvalidTransactionStateError(
+        transaction.id,
+        `does not belong to wallet ${wallet.id}`,
+      );
     }
     if (!UNDECIDED_STATUSES.includes(transaction.status)) {
       throw new InvalidTransactionStateError(transaction.id, `already ${transaction.status}`);

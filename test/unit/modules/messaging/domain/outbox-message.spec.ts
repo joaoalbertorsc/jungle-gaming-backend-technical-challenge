@@ -14,7 +14,12 @@ function anEvent() {
     openingCredit: { entryId: 'entry-0', transactionId: 'tx-0' },
     at: T0,
   });
-  const entry = wallet.debit({ entryId: 'entry-1', transactionId: 'tx-1', money: brl('25.00'), at: T0 });
+  const entry = wallet.debit({
+    entryId: 'entry-1',
+    transactionId: 'tx-1',
+    money: brl('25.00'),
+    at: T0,
+  });
   return WalletBalanceChanged.from(wallet, entry, {
     eventId: 'event-1',
     correlationId: 'corr-1',

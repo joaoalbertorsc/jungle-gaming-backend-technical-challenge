@@ -68,7 +68,10 @@ export function aProcessedWager(
   return transaction;
 }
 
-export function aWallet(balance: string, overrides: { currency?: string; playerId?: string } = {}): Wallet {
+export function aWallet(
+  balance: string,
+  overrides: { currency?: string; playerId?: string } = {},
+): Wallet {
   return Wallet.rehydrate({
     id: WALLET_ID,
     playerId: overrides.playerId ?? PLAYER_ID,

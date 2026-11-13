@@ -5,16 +5,28 @@ import {
   WagerTransactionRejected,
 } from '../../../../../src/modules/wagering/domain/events/wager-transaction-events';
 import { FailureCode } from '../../../../../src/modules/wagering/domain/failure-code';
-import { WagerTransactionKind as Kind } from '../../../../../src/modules/wagering/domain/wager-transaction';
+import {
+  WagerTransactionKind as Kind,
+  WagerTransactionStatus as Status,
+} from '../../../../../src/modules/wagering/domain/wager-transaction';
 import { InvalidTransactionStateError } from '../../../../../src/modules/wagering/domain/wagering-errors';
 import { aWager, brl, T1 } from '../../../../support/builders/wagering';
 
-const context = { eventId: 'event-1', correlationId: 'corr-1', causationId: 'msg-1', occurredAt: T1 };
+const context = {
+  eventId: 'event-1',
+  correlationId: 'corr-1',
+  causationId: 'msg-1',
+  occurredAt: T1,
+};
 
 describe('wager transaction events', () => {
   it('WagerTransactionProcessed carries the outcome and the resulting balance', () => {
     const refund = aWager(Kind.Refund, { money: brl('25.00') });
-    refund.markProcessed({ referenceTransactionId: 'tx-bet', resultingBalance: brl('1000.00'), at: T1 });
+    refund.markProcessed({
+      referenceTransactionId: 'tx-bet',
+      resultingBalance: brl('1000.00'),
+      at: T1,
+    });
 
     const envelope = WagerTransactionProcessed.from(refund, context).toJSON();
 
@@ -31,7 +43,7 @@ describe('wager transaction events', () => {
       roundId: refund.roundId,
       gameId: refund.gameId,
       kind: 'REFUND',
-      status: 'PROCESSED',
+      status: Status.Processed,
       money: { amount: '25.00', currency: 'BRL' },
       referenceExternalTransactionId: 'ext-referenced',
       referenceTransactionId: 'tx-bet',
@@ -42,7 +54,11 @@ describe('wager transaction events', () => {
 
   it('WagerTransactionProcessed is also emitted for LOSS, which moves no money', () => {
     const loss = aWager(Kind.Loss);
-    loss.markProcessed({ referenceTransactionId: undefined, resultingBalance: brl('975.00'), at: T1 });
+    loss.markProcessed({
+      referenceTransactionId: undefined,
+      resultingBalance: brl('975.00'),
+      at: T1,
+    });
 
     const data = WagerTransactionProcessed.from(loss, context).toJSON().data;
 
@@ -52,13 +68,17 @@ describe('wager transaction events', () => {
 
   it('WagerTransactionRejected carries the failure code', () => {
     const bet = aWager(Kind.Bet);
-    bet.reject({ failureCode: FailureCode.InsufficientFunds, resultingBalance: brl('20.00'), at: T1 });
+    bet.reject({
+      failureCode: FailureCode.InsufficientFunds,
+      resultingBalance: brl('20.00'),
+      at: T1,
+    });
 
     const envelope = WagerTransactionRejected.from(bet, context).toJSON();
 
     expect(envelope.eventType).toBe('WagerTransactionRejected');
-    expect(envelope.data.status).toBe('REJECTED');
-    expect(envelope.data.failureCode).toBe('INSUFFICIENT_FUNDS');
+    expect(envelope.data.status).toBe(Status.Rejected);
+    expect(envelope.data.failureCode).toBe(FailureCode.InsufficientFunds);
     expect(envelope.data.balance).toEqual({ amount: '20.00', currency: 'BRL' });
     expect(envelope.data.rejectedAt).toBe(T1.toISOString());
   });
@@ -70,7 +90,7 @@ describe('wager transaction events', () => {
     const envelope = WagerTransactionPendingReference.from(rollback, context).toJSON();
 
     expect(envelope.eventType).toBe('WagerTransactionPendingReference');
-    expect(envelope.data.status).toBe('PENDING_REFERENCE');
+    expect(envelope.data.status).toBe(Status.PendingReference);
     expect(envelope.data.referenceExternalTransactionId).toBe('ext-referenced');
   });
 

@@ -161,7 +161,9 @@ describe('Money', () => {
   describe('serialization', () => {
     it('serializes to the contract shape with a decimal string', () => {
       expect(brl('25').toJSON()).toEqual({ amount: '25.00', currency: 'BRL' });
-      expect(JSON.stringify({ money: brl('25') })).toBe('{"money":{"amount":"25.00","currency":"BRL"}}');
+      expect(JSON.stringify({ money: brl('25') })).toBe(
+        '{"money":{"amount":"25.00","currency":"BRL"}}',
+      );
     });
 
     it('prints a readable string', () => {

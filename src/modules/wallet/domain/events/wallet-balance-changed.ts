@@ -19,7 +19,11 @@ export class WalletBalanceChanged extends IntegrationEvent<WalletBalanceChangedD
   readonly eventType = 'WalletBalanceChanged';
   readonly version = 1;
 
-  static from(wallet: Wallet, entry: WalletLedgerEntry, context: EventContext): WalletBalanceChanged {
+  static from(
+    wallet: Wallet,
+    entry: WalletLedgerEntry,
+    context: EventContext,
+  ): WalletBalanceChanged {
     if (entry.walletId !== wallet.id) {
       throw new InvalidWalletOperationError(`ledger entry ${entry.id} belongs to another wallet`);
     }

@@ -80,8 +80,15 @@ export class WagerTransactionPendingReference extends IntegrationEvent<WagerTran
   readonly eventType = 'WagerTransactionPendingReference';
   readonly version = 1;
 
-  static from(transaction: WagerTransaction, context: EventContext): WagerTransactionPendingReference {
-    assertStatus(transaction, WagerTransactionStatus.PendingReference, 'WagerTransactionPendingReference');
+  static from(
+    transaction: WagerTransaction,
+    context: EventContext,
+  ): WagerTransactionPendingReference {
+    assertStatus(
+      transaction,
+      WagerTransactionStatus.PendingReference,
+      'WagerTransactionPendingReference',
+    );
     return new WagerTransactionPendingReference({
       ...context,
       aggregateId: transaction.id,

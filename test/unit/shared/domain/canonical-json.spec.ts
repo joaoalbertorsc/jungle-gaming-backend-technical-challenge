@@ -28,7 +28,9 @@ describe('canonicalJson', () => {
   });
 
   it('escapes strings exactly like JSON', () => {
-    expect(canonicalJson({ text: 'quote " and \\ and ü' })).toBe('{"text":"quote \\" and \\\\ and ü"}');
+    expect(canonicalJson({ text: 'quote " and \\ and ü' })).toBe(
+      '{"text":"quote \\" and \\\\ and ü"}',
+    );
   });
 
   it.each([

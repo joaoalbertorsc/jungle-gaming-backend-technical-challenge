@@ -12,7 +12,14 @@ import {
   InvalidWagerTransactionError,
 } from '../../../../../src/modules/wagering/domain/wagering-errors';
 import { LedgerDirection } from '../../../../../src/modules/wallet/domain/wallet-ledger-entry';
-import { aProcessedWager, aWager, brl, T0, T1, wagerProps } from '../../../../support/builders/wagering';
+import {
+  aProcessedWager,
+  aWager,
+  brl,
+  T0,
+  T1,
+  wagerProps,
+} from '../../../../support/builders/wagering';
 
 function rejectionReason(fn: () => unknown): string | undefined {
   try {
@@ -105,12 +112,17 @@ describe('WagerTransaction', () => {
       expect(aWager(Kind.Loss, { money: brl('0.00') }).money.isZero()).toBe(true);
     });
 
-    it.each(['providerId', 'externalTransactionId', 'idempotencyKey', 'walletId', 'playerId', 'roundId', 'gameId'])(
-      'refuses an empty %s',
-      (field) => {
-        expect(rejectionReason(() => aWager(Kind.Bet, { [field]: ' ' }))).toBe('MISSING_FIELD');
-      },
-    );
+    it.each([
+      'providerId',
+      'externalTransactionId',
+      'idempotencyKey',
+      'walletId',
+      'playerId',
+      'roundId',
+      'gameId',
+    ])('refuses an empty %s', (field) => {
+      expect(rejectionReason(() => aWager(Kind.Bet, { [field]: ' ' }))).toBe('MISSING_FIELD');
+    });
   });
 
   describe('opening()', () => {
@@ -185,26 +197,51 @@ describe('WagerTransaction', () => {
       expect(transaction.isTerminal()).toBe(false);
     });
 
-    it.each([
-      ['PROCESSED', (t: WagerTransaction) => t.markProcessed({ referenceTransactionId: 'tx-bet', resultingBalance: brl('1.00'), at: T1 })],
-      ['REJECTED', (t: WagerTransaction) => t.reject({ failureCode: FailureCode.ReferenceNotFound, resultingBalance: brl('1.00'), at: T1 })],
-      ['FAILED', (t: WagerTransaction) => t.fail({ failureCode: FailureCode.ProcessingFailed, at: T1 })],
-    ])('PENDING_REFERENCE → %s', (expected, transition) => {
+    const fromPendingReference: [Status, (t: WagerTransaction) => void][] = [
+      [
+        Status.Processed,
+        (t) => {
+          t.markProcessed({
+            referenceTransactionId: 'tx-bet',
+            resultingBalance: brl('1.00'),
+            at: T1,
+          });
+        },
+      ],
+      [
+        Status.Rejected,
+        (t) => {
+          t.reject({
+            failureCode: FailureCode.ReferenceNotFound,
+            resultingBalance: brl('1.00'),
+            at: T1,
+          });
+        },
+      ],
+      [
+        Status.Failed,
+        (t) => {
+          t.fail({ failureCode: FailureCode.ProcessingFailed, at: T1 });
+        },
+      ],
+    ];
+
+    it.each(fromPendingReference)('PENDING_REFERENCE → %s', (expected, transition) => {
       const transaction = aWager(Kind.Refund);
       transaction.markPendingReference({ observedBalance: brl('1.00') });
 
       transition(transaction);
 
-      expect(transaction.status).toBe(expected as Status);
+      expect(transaction.status).toBe(expected);
     });
 
     it('PENDING_REFERENCE cannot be marked pending again', () => {
       const transaction = aWager(Kind.Refund);
       transaction.markPendingReference({ observedBalance: brl('1.00') });
 
-      expect(() => transaction.markPendingReference({ observedBalance: brl('1.00') })).toThrow(
-        InvalidTransactionStateError,
-      );
+      expect(() => {
+        transaction.markPendingReference({ observedBalance: brl('1.00') });
+      }).toThrow(InvalidTransactionStateError);
     });
 
     describe('terminal states never change', () => {
@@ -214,7 +251,11 @@ describe('WagerTransaction', () => {
           'REJECTED',
           () => {
             const t = aWager(Kind.Bet);
-            t.reject({ failureCode: FailureCode.InsufficientFunds, resultingBalance: brl('0.00'), at: T1 });
+            t.reject({
+              failureCode: FailureCode.InsufficientFunds,
+              resultingBalance: brl('0.00'),
+              at: T1,
+            });
             return t;
           },
         ],
@@ -228,10 +269,38 @@ describe('WagerTransaction', () => {
         ],
       ];
       const transitions: [string, (t: WagerTransaction) => void][] = [
-        ['markProcessed', (t) => { t.markProcessed({ referenceTransactionId: undefined, resultingBalance: brl('1.00'), at: T1 }); }],
-        ['markPendingReference', (t) => { t.markPendingReference({ observedBalance: brl('1.00') }); }],
-        ['reject', (t) => { t.reject({ failureCode: FailureCode.AmountMismatch, resultingBalance: brl('1.00'), at: T1 }); }],
-        ['fail', (t) => { t.fail({ failureCode: FailureCode.ProcessingFailed, at: T1 }); }],
+        [
+          'markProcessed',
+          (t) => {
+            t.markProcessed({
+              referenceTransactionId: undefined,
+              resultingBalance: brl('1.00'),
+              at: T1,
+            });
+          },
+        ],
+        [
+          'markPendingReference',
+          (t) => {
+            t.markPendingReference({ observedBalance: brl('1.00') });
+          },
+        ],
+        [
+          'reject',
+          (t) => {
+            t.reject({
+              failureCode: FailureCode.AmountMismatch,
+              resultingBalance: brl('1.00'),
+              at: T1,
+            });
+          },
+        ],
+        [
+          'fail',
+          (t) => {
+            t.fail({ failureCode: FailureCode.ProcessingFailed, at: T1 });
+          },
+        ],
       ];
 
       for (const [state, build] of terminalTransactions) {
@@ -240,7 +309,9 @@ describe('WagerTransaction', () => {
             const transaction = build();
             const statusBefore = transaction.status;
 
-            expect(() => transition(transaction)).toThrow(InvalidTransactionStateError);
+            expect(() => {
+              transition(transaction);
+            }).toThrow(InvalidTransactionStateError);
             expect(transaction.status).toBe(statusBefore);
           });
         }

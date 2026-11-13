@@ -61,16 +61,17 @@ describe('WalletLedgerEntry', () => {
 
     it.each(['0.00'])('rejects a non-positive amount (%p)', (amount) => {
       expect(() =>
-        WalletLedgerEntry.create(
-          validDebit({ money: brl(amount), balanceAfter: brl('1000.00') }),
-        ),
+        WalletLedgerEntry.create(validDebit({ money: brl(amount), balanceAfter: brl('1000.00') })),
       ).toThrow(InvalidLedgerEntryError);
     });
 
     it('rejects a negative balance after the movement', () => {
       expect(() =>
         WalletLedgerEntry.create(
-          validDebit({ balanceBefore: brl('10.00'), balanceAfter: brl('10.00').subtract(brl('25.00')) }),
+          validDebit({
+            balanceBefore: brl('10.00'),
+            balanceAfter: brl('10.00').subtract(brl('25.00')),
+          }),
         ),
       ).toThrow(InvalidLedgerEntryError);
     });
