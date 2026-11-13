@@ -16,6 +16,8 @@ import { integrationEnv, uniqueRunId } from './integration-env';
  */
 const TEMPLATE_DATABASE = 'wagering_template';
 const ADVISORY_LOCK_KEY = 74_201_607;
+const DROP_ATTEMPTS = 50;
+const DROP_RETRY_DELAY_MS = 100;
 
 function onDatabase(url: string, database: string): string {
   const parsed = new URL(url);
@@ -97,12 +99,26 @@ export class TestDatabase {
     return TestDatabase.connect(name);
   }
 
+  /**
+   * Drops the database once its sessions are gone. `WITH (FORCE)` is not used: terminating the
+   * runtime role's backends would need a privilege the schema owner deliberately does not have, and a
+   * just-closed client can take a moment to disappear server-side.
+   */
   async drop(): Promise<void> {
     await this.app.close();
     await this.owner.close();
     const admin = adminConnection();
     try {
-      await admin.unsafe(`DROP DATABASE IF EXISTS ${this.name} WITH (FORCE)`);
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await admin.unsafe(`DROP DATABASE IF EXISTS ${this.name}`);
+          return;
+        } catch (error) {
+          const objectInUse = (error as { errno?: string }).errno === '55006';
+          if (!objectInUse || attempt >= DROP_ATTEMPTS) throw error;
+          await Bun.sleep(DROP_RETRY_DELAY_MS);
+        }
+      }
     } finally {
       await admin.close();
     }
