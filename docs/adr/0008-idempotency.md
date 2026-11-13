@@ -20,12 +20,18 @@ balance observed at that moment (§7 rule 7). An in-memory cache must never be t
   - Canonical JSON means object keys sorted recursively, no insignificant whitespace, and amounts normalized
     to 2 decimals.
   - The header and transport metadata (`messageId`, `occurredAt`, HTTP headers) are excluded.
-- **Flow.** Inside the wallet lock (ADR-0007), the transaction is looked up by key:
-  - not found: process normally;
-  - found, same hash: return the stored outcome with `idempotentReplay: true`;
-  - found, different hash: `IdempotencyConflictError` (HTTP 409), never a replay.
+- **Flow** (`decideIdempotency`, a pure domain function):
+  - same key, same hash: return the stored outcome with `idempotentReplay: true`;
+  - same key, different hash: `IdempotencyConflictError(PAYLOAD_MISMATCH)` (HTTP 409), never a replay;
+  - new key, but `(providerId, externalTransactionId)` already stored under another key:
+    `IdempotencyConflictError(EXTERNAL_ID_REUSED)`;
+  - otherwise: process.
+- **Two checks.** A lock-free lookup first lets replays return without touching the wallet lock. The
+  authoritative check runs again **after** `SELECT ... FOR UPDATE`, when concurrent copies are already
+  serialized (`docs/diagrams/submit-wager-flow.md`).
 - **Races across wallets.** If the same key arrives with a different `walletId`, the two requests lock
-  different rows. The unique constraint makes one fail; it re-reads and classifies as above.
+  different rows. The unique constraint makes one fail; the use case retries the unit of work once, and the
+  re-read classifies the request as a replay or a conflict.
 - **Stored outcome.** Status, `failureCode` and the resulting balance snapshot are persisted with the
   transaction, so a replay returns exactly what the first call observed.
 - **Transport deduplication.** SQS duplicates are also caught by the persistent inbox (ADR-0010).

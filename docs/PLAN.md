@@ -8,7 +8,7 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | 0     | Project setup                         | 3     | 3          | ✅ Done |
 | 1     | Domain model                          | 4     | 7          | ✅ Done |
 | 2     | Schema and migrations                 | 4     | 11         | ✅ Done |
-| 3     | Use cases                             | 6     | 17         | ⬜      |
+| 3     | Use cases                             | 6     | 17         | ✅ Done |
 | 4     | HTTP API                              | 3     | 20         | ⬜      |
 | 5     | SQS consumer                          | 4     | 24         | ⬜      |
 | 6     | Outbox relay                          | 3     | 27         | ⬜      |
@@ -50,16 +50,17 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 - [x] Ledger version-chain trigger adopted (ADR-0006)
 - [x] Per-test-file template database harness
 
-## Phase 3: Use cases
+## Phase 3: Use cases ✅
 
-- [ ] Transaction runner port and MikroORM implementation; repositories and mappers
-- [ ] `CreateWallet` (OPENING transaction + CREDIT entry in the same transaction)
-- [ ] `SubmitWagerTransaction` (wallet lock, idempotency, rules, outcome snapshot, outbox)
-- [ ] Queries (wallet, ledger cursor, transaction by id and by provider id)
-- [ ] `ReconcileWallet`
+- [x] Transaction runner port and MikroORM implementation; repositories and mappers
+- [x] `CreateWallet` (OPENING transaction + CREDIT entry in the same transaction)
+- [x] `SubmitWagerTransaction` (wallet lock, idempotency, rules, outcome snapshot, outbox)
+- [x] Queries (wallet, ledger cursor, transaction by id and by provider id)
+- [x] `ReconcileWallet`
 
 ## Phase 4: HTTP API
 
+- [ ] Nest wiring of the use cases (factories, no decorators in the application layer)
 - [ ] Controllers and Zod schemas (Standard Schema pipe)
 - [ ] Global exception filter + Problem Details; status mapping (ADR-0009)
 - [ ] `/health/ready`
