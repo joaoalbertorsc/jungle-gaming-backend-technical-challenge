@@ -45,14 +45,23 @@ describe('parseWagerMessage', () => {
   });
 
   it('reports a body that is not JSON as MALFORMED_MESSAGE', () => {
-    expect(parseWagerMessage('{not json')).toMatchObject({ ok: false, reason: 'MALFORMED_MESSAGE' });
+    expect(parseWagerMessage('{not json')).toMatchObject({
+      ok: false,
+      reason: 'MALFORMED_MESSAGE',
+    });
   });
 
   it.each([
     ['an unknown type', { ...message, type: 'SomethingElse' }],
     ['the internal OPENING kind', { ...message, data: { ...message.data, kind: 'OPENING' } }],
-    ['a missing idempotency key', { ...message, data: { ...message.data, idempotencyKey: undefined } }],
-    ['a numeric amount', { ...message, data: { ...message.data, money: { amount: 25, currency: 'BRL' } } }],
+    [
+      'a missing idempotency key',
+      { ...message, data: { ...message.data, idempotencyKey: undefined } },
+    ],
+    [
+      'a numeric amount',
+      { ...message, data: { ...message.data, money: { amount: 25, currency: 'BRL' } } },
+    ],
     ['an unknown field', { ...message, extra: true }],
   ])('reports %s as INVALID_MESSAGE', (_label, body) => {
     expect(parseWagerMessage(JSON.stringify(body))).toMatchObject({
@@ -73,6 +82,8 @@ describe('classifyFailure', () => {
     [new TransientInfrastructureError('DATABASE_UNAVAILABLE'), 'retry', 'DATABASE_UNAVAILABLE'],
     [new Error('boom'), 'retry', 'UNEXPECTED_ERROR'],
   ])('%s → %s (%s)', (error, action, reason) => {
-    expect(classifyFailure(error)).toEqual({ action, reason } as ReturnType<typeof classifyFailure>);
+    expect(classifyFailure(error)).toEqual({ action, reason } as ReturnType<
+      typeof classifyFailure
+    >);
   });
 });

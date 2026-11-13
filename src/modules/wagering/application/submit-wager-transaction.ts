@@ -15,6 +15,7 @@ import type { Repositories, UnitOfWork } from '../../../shared/application/unit-
 import { ExponentialBackoff } from '../../../shared/domain/exponential-backoff';
 import type { EventContext } from '../../../shared/domain/integration-event';
 import { Money, type MoneyProps } from '../../../shared/domain/money';
+import type { InboxMessage } from '../../messaging/domain/inbox-message';
 import { OutboxMessage } from '../../messaging/domain/outbox-message';
 import { WalletBalanceChanged } from '../../wallet/domain/events/wallet-balance-changed';
 import type { Wallet } from '../../wallet/domain/wallet';
@@ -81,19 +82,30 @@ export class SubmitWagerTransaction {
     private readonly metrics: ApplicationMetrics,
   ) {}
 
-  async execute(command: SubmitWagerTransactionCommand): Promise<WagerOutcome> {
+  /**
+   * @param options.inbox the consumed message (SQS entry): recorded in the same SQL transaction as
+   *   the effects, so a redelivery is recognised even after a crash between commit and ack (§10).
+   */
+  async execute(
+    command: SubmitWagerTransactionCommand,
+    options: { readonly inbox?: InboxMessage } = {},
+  ): Promise<WagerOutcome> {
     // Validates the submission (kind, reference rules, money) and computes its payload hash.
     const probe = this.newTransaction(command);
 
-    // Fast path: a replay needs no wallet lock.
-    const early = await this.unitOfWork.read((repositories) => this.decide(repositories, probe));
-    if (early.type !== 'new') return this.resolveKnown(early, command.context);
+    // Fast path: a replay needs no wallet lock. Skipped for queue messages, whose inbox row must be
+    // written in a transaction even when the outcome is a replay.
+    if (options.inbox === undefined) {
+      const early = await this.unitOfWork.read((repositories) => this.decide(repositories, probe));
+      if (early.type !== 'new') return this.resolveKnown(early, command.context);
+    }
 
     for (let attempt = 1; ; attempt++) {
       try {
-        const result = await this.unitOfWork.transaction((repositories) =>
-          this.processLocked(repositories, this.newTransaction(command), command.context),
-        );
+        const result = await this.unitOfWork.transaction((repositories) => {
+          if (options.inbox !== undefined) repositories.inbox.record(options.inbox);
+          return this.processLocked(repositories, this.newTransaction(command), command.context);
+        });
         if (!result.idempotentReplay) {
           this.metrics.transactionOutcome(command.kind, result.status, command.context.channel);
         }

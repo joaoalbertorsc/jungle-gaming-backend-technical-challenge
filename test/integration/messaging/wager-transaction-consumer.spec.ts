@@ -1,12 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import type { SQSClient } from '@aws-sdk/client-sqs';
 import type { SubmitWagerTransactionCommand } from '../../../src/modules/wagering/application/submit-wager-transaction';
-import {
-  assertLedgerMatchesBalance,
-  count,
-  FailAt,
-  httpContext,
-} from '../../support/application';
+import { assertLedgerMatchesBalance, count, FailAt, httpContext } from '../../support/application';
 import {
   CONSUMER_NAME,
   createTestConsumer,
