@@ -18,8 +18,11 @@ unguarded read → calculate → update (§5.7). The mandatory scenario: balance
 - Each transaction locks exactly **one** wallet, so lock-ordering deadlocks cannot happen.
 - **Bounded waits.** `lock_timeout` (around 2 s) caps the wait. A timeout is a **transient** error: HTTP 503
   with `Retry-After`, or an SQS retry. It is counted in `wallet_lock_conflicts_total`.
-- **Version.** `version` increments only when the balance changes (§6.2). The update also checks the version
-  it read (`WHERE id = ? AND version = ?`) as defense in depth.
+- **Version.** `version` increments only when the balance changes (§6.2). The defense in depth sits in the
+  schema, not in a `WHERE version = ?` clause (revised in phase 3). The `wallets_version_tracks_balance`
+  trigger only accepts `version = OLD.version + 1` together with a balance change, and
+  `UNIQUE (wallet_id, wallet_version)` on the ledger rejects a second entry for the same version. A writer that
+  bypassed the row lock with a stale read would therefore be rejected by PostgreSQL.
 - **Last line of defense.** `CHECK (balance >= 0)` in the schema (ADR-0006).
 - **Broker ordering.** FIFO `MessageGroupId = walletId` is an optimization only (§8); it guarantees nothing.
 

@@ -17,9 +17,18 @@ evaluated (§5.9): constraints, partial indexes and triggers are central.
 - **Domain classes are not ORM entities.** Infrastructure defines persistence models and mappers. Mappers
   rebuild domain objects through their `rehydrate` factories, which by design do not re-validate transitions
   (§6.0), and copy state changes back.
-- **Transaction strategy.** Each use case runs inside a transaction-runner port, implemented with
-  `em.transactional()` on a forked `EntityManager`. Every repository call made in that use case shares that
-  transaction: inbox, transaction, wallet, ledger and outbox all commit or roll back together.
+- **Transaction strategy.** Use cases depend on a `UnitOfWork` port (`src/shared/application/unit-of-work.ts`).
+  `MikroOrmUnitOfWork` forks a fresh `EntityManager` per call and runs `em.transactional()` with
+  `SET LOCAL lock_timeout`. Its identity map therefore lives exactly as long as one SQL transaction, and the
+  Unit of Work flushes once at commit. `allowGlobalContext: false` forbids accidental use of the global
+  `EntityManager`. Repositories receive the transactional `EntityManager`, so inbox, transaction, wallet, ledger
+  and outbox commit or roll back together.
+- **Mapping detail.** Persistence records are `EntitySchema` classes. Foreign keys are declared as
+  many-to-one relations with `mapToPk`: the record holds plain ids, while MikroORM still orders inserts by
+  dependency. Enum columns are parsed strictly when rehydrating, so a corrupted value fails loudly.
+- **Driver errors** are translated in the infrastructure layer (`55P03`/`40P01` → `LOCK_TIMEOUT`,
+  connection loss → `DATABASE_UNAVAILABLE`, unique violations with their constraint name), so use cases never
+  see MikroORM types.
 - **Money mapping.** A `money_amount` domain (`NUMERIC` checked for >= 0, at most 2 decimals and 17 integer
   digits) plus a `currency_code` domain (`CHAR(3)`, ISO-4217). A `NUMERIC(19,2)` typmod was rejected because it
   silently rounds `1.005` to `1.01`. PostgreSQL returns `NUMERIC` as a string, and the

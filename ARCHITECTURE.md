@@ -111,6 +111,9 @@ The schema enforces the invariants on its own, even against hand-written SQL by 
 
 ## 7. Main flows _(phases 3–7)_
 
+- Submit a wager: [`docs/diagrams/submit-wager-flow.md`](docs/diagrams/submit-wager-flow.md). A lock-free replay
+  fast path, then one SQL transaction: wallet row lock → authoritative idempotency check → reference
+  resolution → processor → transaction, ledger, wallet and outbox events → commit.
 - Submit a wager over HTTP
 - Consume a wager from SQS
 - Publish outbox events
