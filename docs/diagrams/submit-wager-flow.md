@@ -1,5 +1,8 @@
 # Submitting a wager
 
+Why: every wager changes money, so it has to be idempotent, serialized per wallet and atomic. This is the
+one path that does it, for HTTP and SQS alike.
+
 Source: `src/modules/wagering/application/submit-wager-transaction.ts`. The same use case serves HTTP and
 SQS (§10).
 

@@ -1,5 +1,8 @@
 # Publishing outbox events
 
+Why: an event must never leave before its data is committed, and must never be lost after, even when
+several relays run and one dies mid-publication.
+
 Source: `src/modules/messaging/application/outbox-relay.ts`, `src/infrastructure/database/mikro-orm-outbox-store.ts`
 (ADR-0011).
 

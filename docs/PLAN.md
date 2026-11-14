@@ -88,18 +88,18 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 
 - [x] Structured logs with correlation, redaction, Prometheus metrics
 
-## Phase 10: Documentation consolidation
+## Phase 10: Documentation consolidation ✅
 
-- [ ] `ARCHITECTURE.md` (decisions, trade-offs, limitations), README commands, sequence/state/ER diagrams
+- [x] `ARCHITECTURE.md` (decisions, trade-offs, limitations), README commands, sequence/state/ER diagrams
 
-## Phase 11 (optional): Load test
+## Phase 11 (optional): Load test ✂️ cut for time
 
 - [ ] `bun run test:load` with methodology, throughput, p50/p95/p99, error rate, conflicts, outbox lag
 
-## Phase 12 (optional): Keycloak
+## Phase 12 (optional): Keycloak ✂️ cut (extension point only)
 
 - [ ] Client Credentials, JWT guard, provider identity check (ADR-0014)
 
-## Phase 13: Final requirements audit
+## Phase 13: Final requirements audit ✅
 
-- [ ] Walk every row of `docs/traceability.md` and every eliminatory failure against code and tests; close gaps
+- [x] Walk every row of `docs/traceability.md` and every eliminatory failure against code and tests; close gaps

@@ -1,20 +1,66 @@
 # Distributed Wagering Processor
 
-Solution for the Jungle Gaming backend technical challenge: a distributed wallet and wagering transaction
-processor that stays correct under duplicated, out-of-order and concurrent delivery, across several instances.
+A wallet and wagering transaction processor that keeps every balance exact while the same operation arrives
+twice, out of order or at the same time, on several instances. Built for the Jungle Gaming backend technical
+challenge ([`docs/CHALLENGE.md`](docs/CHALLENGE.md)).
 
-**Stack:** Bun 1.4 · TypeScript 6 (strict) · NestJS 12 · MikroORM 7 · PostgreSQL 17 · SQS (MiniStack) ·
-Docker Compose.
+## Context
 
-- Challenge statement: [`docs/CHALLENGE.md`](docs/CHALLENGE.md)
-- Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) and the decision records in [`docs/adr/`](docs/adr/)
-- Delivery plan and progress: [`docs/PLAN.md`](docs/PLAN.md)
-- Requirements → tests: [`docs/traceability.md`](docs/traceability.md)
-- Final audit (eliminatory failures, gaps): [`docs/audit.md`](docs/audit.md)
+Game providers send `BET`, `WIN`, `LOSS`, `REFUND` and `ROLLBACK` operations over HTTP and over an SQS queue.
+Delivery is **at least once**, so the system has to stay correct when a message is:
 
-> **Status:** feature-complete for the mandatory scope: HTTP and SQS entry points, outbox relay, retry worker,
-> the concurrency suite and observability. The optional load test and Keycloak integration are not included;
-> see [`docs/traceability.md`](docs/traceability.md).
+- **duplicated**: a retry must never debit or credit twice;
+- **out of order**: a `REFUND` can arrive before the `BET` it reverses;
+- **concurrent**: two bets can compete for the same balance;
+- **spread over instances**: three or more processes run at once, any of which can crash between steps.
+
+Money must be exact (no floating point), every balance change auditable, and no event may leave before its data
+is committed. The required stack is PostgreSQL, SQS and Docker. Mocks cannot replace them in tests.
+
+## Action
+
+**Stack:** TypeScript 6 (strict) on Bun 1.4 · NestJS 12 · MikroORM 7 · PostgreSQL 17 · SQS (MiniStack emulator) ·
+Docker Compose · Prometheus metrics · OpenAPI / Swagger UI.
+
+What the design does about each risk:
+
+| Risk                           | Answer                                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Partial writes                 | One SQL transaction per operation: transaction, ledger entry, balance, inbox and outbox events commit together or not at all   |
+| Two bets on one balance        | A row lock per wallet (`SELECT … FOR UPDATE`) with a bounded wait. Other wallets never wait (no global lock)                   |
+| Duplicates and retries         | Persistent idempotency (key + hash of the canonical payload, stored with the outcome) and an SQS inbox in the same transaction |
+| Out-of-order references        | `PENDING_REFERENCE` (HTTP 202), settled by a retry worker with exponential backoff and a bounded number of attempts            |
+| Events lost or published early | Transactional outbox and relay processes: published only after commit, at least once                                           |
+| Bugs slipping past the code    | The schema enforces the invariants itself: no negative balance, an append-only chained ledger, balance == ledger at commit     |
+| Several instances              | One image, one role per process (`api`, `consumer`, `outbox-relay`, `retry-worker`). All coordination goes through PostgreSQL  |
+
+The work was test-driven (red → green commits), against real PostgreSQL and SQS containers, and shipped in phases
+through pull requests that merge only when CI is green. Details:
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): design, concurrency strategy, flows, trade-offs;
+- 18 decision records in [`docs/adr/`](docs/adr/);
+- the diagrams in [`docs/diagrams/`](docs/diagrams/).
+
+## Result
+
+| Guarantee                          | Evidence                                                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| No duplicated debit or credit      | 50 identical bets sent in parallel to 3 API processes → 1 × 201, 49 × 200, **one** debit               |
+| No negative balance under races    | 100.00 and two simultaneous 80.00 bets → one `PROCESSED`, one `INSUFFICIENT_FUNDS`, 20.00, one debit   |
+| Correct with several instances     | 3 APIs, 3 consumers, 2 relays and a retry worker as separate processes, killed and restarted mid-run   |
+| Crash after commit, before the ack | The redelivered message is recognised by the inbox: no second effect                                   |
+| No event before commit             | A rolled-back operation publishes nothing; a dead relay's events are published by another              |
+| Auditable ledger                   | Append-only, gap-free per wallet; reconciliation reports any divergence and never corrects it silently |
+
+Every test ends by checking `wallet.balance == balance rebuilt from the ledger`. At the last merge, **348 unit,
+220 integration/e2e and 10 concurrency tests** pass, in CI on every pull request.
+
+- **Delivered:** the whole mandatory scope. That covers the HTTP and SQS entry points, the outbox relay and
+  retry worker, the concurrency suite, metrics and JSON logs, and the interactive API documentation.
+- **Not delivered:** the optional load test and the Keycloak integration (only the authentication extension
+  point exists).
+- **Where to check:** the audit of each eliminatory failure is in [`docs/audit.md`](docs/audit.md); every
+  requirement maps to its code and tests in [`docs/traceability.md`](docs/traceability.md).
 
 ## Prerequisites
 
@@ -206,3 +252,17 @@ push to `main`:
 3. Integration and e2e tests inside the same compose workspace, including the OpenAPI drift guard
 4. Concurrency suite: every role as a separate process, with crashes and restarts
 5. Production image build
+
+## Documentation map
+
+| Document                                         | Read it for                                              |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| [`docs/CHALLENGE.md`](docs/CHALLENGE.md)         | The original statement                                   |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md)             | Design, decisions, concurrency, flows and limitations    |
+| [`docs/adr/`](docs/adr/)                         | One decision per record: context, decision, consequences |
+| [`docs/diagrams/`](docs/diagrams/)               | Topology, modules, data model, states and every flow     |
+| [`docs/API.md`](docs/API.md)                     | HTTP reference (also live at `/docs`)                    |
+| [`docs/observability.md`](docs/observability.md) | Metrics catalogue, log fields, alerts                    |
+| [`docs/traceability.md`](docs/traceability.md)   | Requirement → code → test                                |
+| [`docs/audit.md`](docs/audit.md)                 | Eliminatory failures checked, and what is not delivered  |
+| [`docs/PLAN.md`](docs/PLAN.md)                   | Delivery phases                                          |

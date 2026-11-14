@@ -5,11 +5,11 @@
 
 ## 1. Overview
 
-A distributed wallet and wagering processor. Game providers submit `BET → WIN | LOSS | REFUND | ROLLBACK`
-operations over HTTP or SQS. Delivery is at-least-once, so the system must stay correct under duplicated,
-out-of-order and concurrent messages, across several instances.
+**Context.** Game providers submit `BET → WIN | LOSS | REFUND | ROLLBACK` operations over HTTP or SQS. Delivery
+is at-least-once, so the system must stay correct under duplicated, out-of-order and concurrent messages, across
+several instances, and every cent must stay accounted for.
 
-The design rests on four ideas:
+**Action.** The design rests on four ideas:
 
 1. **One SQL transaction per operation.** The transaction outcome, balance change, ledger entry, inbox record
    and outbox events commit together or not at all (ADR-0001, ADR-0004).
@@ -19,6 +19,10 @@ The design rests on four ideas:
    no global lock (ADR-0007).
 4. **Idempotency is persistent.** The key and payload hash are stored with the transaction outcome, and the
    SQS inbox is a table (ADR-0008, ADR-0010).
+
+**Result.** The eight concurrency scenarios of §13 pass with separate OS processes, crashes and restarts, and
+every test ends with balance == ledger (section 12). The eliminatory failures are checked one by one in
+[`docs/audit.md`](docs/audit.md).
 
 ## 2. Runtime topology
 
