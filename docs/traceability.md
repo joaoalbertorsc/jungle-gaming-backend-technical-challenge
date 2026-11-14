@@ -192,3 +192,21 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 | E-7 | Auditable ledger present                                     | Append-only, chained ledger enforced by the schema; `GET /wallets/:id/ledger` (`test/e2e/wallets.e2e.spec.ts`)                                                                        | ✅     |
 | E-8 | PostgreSQL and SQS not replaced entirely by mocks in tests   | ADR-0017: integration, e2e and concurrency suites run against real PostgreSQL and MiniStack                                                                                           | ✅     |
 | O-1 | (Optional) Load test via `bun run test:load`                 | Not done: cut for time (see ARCHITECTURE.md §13)                                                                                                                                      | ⬜     |
+
+## Additional scenarios (beyond the mandatory list)
+
+Plausible provider situations covered on top of the requirements.
+
+| ID   | Scenario                                                                                          | Test                                                   |
+| ---- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| X-1  | Whole round: BET → WIN → LOSS → ROLLBACK of the WIN → REFUND of the BET; a second REFUND rejected | `test/integration/application/wager-scenarios.spec.ts` |
+| X-2  | REFUND and ROLLBACK of the same BET racing: exactly one reverses it                               | `test/integration/application/wager-scenarios.spec.ts` |
+| X-3  | Hot wallet overbooked: 15 concurrent 10.00 bets on 100.00 → 10 processed, 5 rejected, 0.00        | `test/integration/application/wager-scenarios.spec.ts` |
+| X-4  | REFUND waiting on a BET that ends REJECTED → `REFERENCE_NOT_PROCESSED`                            | `test/integration/application/wager-scenarios.spec.ts` |
+| X-5  | WIN delivered before its BET waits, then credits                                                  | `test/integration/application/wager-scenarios.spec.ts` |
+| X-6  | Ledger pagination stable while new entries are appended between pages                             | `test/integration/application/wager-scenarios.spec.ts` |
+| X-7  | Canonical payload hash over HTTP: `"25"` = `"25.00"`, key order and whitespace irrelevant         | `test/e2e/wagering-scenarios.e2e.spec.ts`              |
+| X-8  | Money formats: 0–2 decimals accepted, answered with 2; negative, zero BET, separators rejected    | `test/e2e/wagering-scenarios.e2e.spec.ts`              |
+| X-9  | Currency or player mix-up → 422; independent wallets per currency                                 | `test/e2e/wagering-scenarios.e2e.spec.ts`              |
+| X-10 | `X-Correlation-Id` reaches the outbox events of the request                                       | `test/e2e/wagering-scenarios.e2e.spec.ts`              |
+| X-11 | The OpenAPI document matches the real responses (drift guard)                                     | `test/e2e/openapi.e2e.spec.ts`                         |
