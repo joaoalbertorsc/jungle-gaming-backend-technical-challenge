@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 import {
   JsonLogger,
   NestJsonLogger,
@@ -30,6 +30,16 @@ describe('JsonLogger', () => {
       transactionId: 't-1',
       time: expect.any(String),
     });
+  });
+
+  it('writes to stdout by default', () => {
+    const log = spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      new JsonLogger().info('to stdout');
+      expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({ message: 'to stdout' });
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it('drops entries below the configured level', () => {
