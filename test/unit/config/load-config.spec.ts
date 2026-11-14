@@ -101,6 +101,37 @@ describe('loadConfig', () => {
     });
   });
 
+  describe('fault injection (ADR-0017)', () => {
+    it('injects no fault by default', () => {
+      expect(loadConfig(minimalEnv).faults).toEqual({ crashAt: undefined });
+    });
+
+    it('crashes at a named point when asked to under NODE_ENV=test', () => {
+      const config = loadConfig({
+        ...minimalEnv,
+        NODE_ENV: 'test',
+        FAULT_CRASH_AT: 'consumer.before-ack',
+      });
+
+      expect(config.faults).toEqual({ crashAt: 'consumer.before-ack' });
+    });
+
+    it.each([undefined, 'production', 'development'])(
+      'refuses fault injection when NODE_ENV is %p',
+      (nodeEnv) => {
+        expect(() =>
+          loadConfig({ ...minimalEnv, NODE_ENV: nodeEnv, FAULT_CRASH_AT: 'consumer.before-ack' }),
+        ).toThrow(ConfigValidationError);
+      },
+    );
+
+    it('rejects an unknown fault point', () => {
+      expect(() =>
+        loadConfig({ ...minimalEnv, NODE_ENV: 'test', FAULT_CRASH_AT: 'somewhere' }),
+      ).toThrow(ConfigValidationError);
+    });
+  });
+
   describe('APP_ROLES', () => {
     it('parses a comma-separated list, trimming spaces and dropping duplicates', () => {
       const config = loadConfig({ ...minimalEnv, APP_ROLES: ' api, consumer ,api,outbox-relay' });

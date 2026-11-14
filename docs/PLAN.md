@@ -13,7 +13,7 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | 5     | SQS consumer                          | 4     | 24         | ✅ Done |
 | 6     | Outbox relay                          | 3     | 27         | ✅ Done |
 | 7     | Pending-reference worker              | 2     | 29         | ✅ Done |
-| 8     | Concurrency suite                     | 5     | 34         | ⬜      |
+| 8     | Concurrency suite                     | 5     | 34         | ✅ Done |
 | 9     | Observability                         | 2     | 36         | ⬜      |
 | 10    | Documentation consolidation           | 3     | 39         | ⬜      |
 | 11    | Load test (optional)                  | 2     | 41         | ⬜      |
@@ -80,9 +80,9 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 
 - [x] Claim due rows, backoff, exhaustion to `REFERENCE_NOT_FOUND`, nudge on reference arrival
 
-## Phase 8: Concurrency suite
+## Phase 8: Concurrency suite ✅
 
-- [ ] The 8 mandatory scenarios (§13) with real parallelism and ≥ 3 processes; final ledger invariant
+- [x] The 8 mandatory scenarios (§13) with real parallelism and ≥ 3 processes; final ledger invariant
 
 ## Phase 9: Observability
 

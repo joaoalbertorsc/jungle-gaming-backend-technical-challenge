@@ -47,6 +47,22 @@ tests that prove it. Every PR lists the requirements it covers, and the last pha
 **Why not Testcontainers.** Tests run inside the `workspace` container, so Testcontainers would need
 Docker-in-Docker. Compose services give the same real containers, with parity between local runs and CI.
 
+## Implementation notes (phase 8)
+
+- **Processes.** `test/support/processes.ts` starts the production entry point (`bun src/main.ts`) once per
+  role, with its own connection pool, and can SIGKILL it (crash) or SIGTERM it (graceful). Every process is
+  killed after its test.
+- **Crash injection.**
+  - `FAULT_CRASH_AT=<fault point>` installs `CrashAt`, which exits synchronously with code 86 at that point.
+    No ack, publication mark or shutdown hook runs after it.
+  - Config refuses it unless `NODE_ENV=test`, so production always runs `NoFaults`.
+- **Invariant.** Every concurrency scenario ends with `assertEveryWalletConsistent`: no wallet in the database
+  disagrees with its ledger.
+- **SIGTERM.** Nest re-raises the signal once its shutdown hooks have run. A process that is not PID 1 (as under
+  `Bun.spawn`) therefore exits with 143 after a clean shutdown; in a container it exits with 0.
+- **Command.** `bun run test:concurrency`. It runs in its own CI job and is part of `verify`.
+- **Finding.** Scenario 1 exposed a race in the idempotency fast path, now fixed (ADR-0008).
+
 ## Consequences
 
 - CI only turns green when every suite has actually run against real infrastructure.

@@ -79,8 +79,12 @@ export class SubmitWagerTransaction {
 
     // Fast path: a replay needs no wallet lock. Skipped for queue messages, whose inbox row must be
     // written in a transaction even when the outcome is a replay.
+    // The two lookups must share one snapshot: read separately, a concurrent commit between them
+    // turns an identical retry into a false EXTERNAL_ID_REUSED conflict.
     if (options.inbox === undefined) {
-      const early = await this.unitOfWork.read((repositories) => this.decide(repositories, probe));
+      const early = await this.unitOfWork.snapshot((repositories) =>
+        this.decide(repositories, probe),
+      );
       if (early.type !== 'new') return this.resolveKnown(early, command.context);
     }
 

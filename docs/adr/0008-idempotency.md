@@ -36,6 +36,15 @@ balance observed at that moment (§7 rule 7). An in-memory cache must never be t
   transaction, so a replay returns exactly what the first call observed.
 - **Transport deduplication.** SQS duplicates are also caught by the persistent inbox (ADR-0010).
 
+## Implementation note: one snapshot for the fast path
+
+The lock-free fast path looks the transaction up by `Idempotency-Key` and by external id. It does both in one
+REPEATABLE READ, read-only snapshot.
+
+Read as two READ COMMITTED statements, a concurrent commit landing between them made the key lookup miss and the
+external-id lookup hit. An identical retry was then answered `409 EXTERNAL_ID_REUSED` instead of `200`.
+Concurrency scenario 1 (the same bet sent 50 times across three processes) caught it.
+
 ## Consequences
 
 - Fifty parallel copies of the same bet produce one debit (§13 concurrency scenario 1). The other 49 are
