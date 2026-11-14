@@ -56,6 +56,16 @@ describe('loadConfig', () => {
       );
     });
 
+    it('tunes the outbox relay by default (batches of 50, 30 s lease)', () => {
+      expect(loadConfig(minimalEnv).outbox).toEqual({
+        batchSize: 50,
+        leaseMs: 30_000,
+        pollIntervalMs: 500,
+        retryBaseMs: 1_000,
+        retryMaxMs: 300_000,
+      });
+    });
+
     it('uses the queue names defined by the challenge', () => {
       expect(loadConfig(minimalEnv).sqs.queues).toEqual({
         wagerTransactions: 'wager-transactions.fifo',

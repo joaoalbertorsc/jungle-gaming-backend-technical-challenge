@@ -6,6 +6,7 @@ import { DatabaseModule } from './infrastructure/database/database.module';
 import { SqsModule } from './infrastructure/messaging/sqs.module';
 import { SystemModule } from './infrastructure/system/system.module';
 import { HealthModule } from './modules/health/health.module';
+import { OutboxRelayModule } from './modules/messaging/interface/outbox-relay.module';
 import { WagerConsumerModule } from './modules/wagering/interface/sqs/wager-consumer.module';
 import { WageringModule } from './modules/wagering/wagering.module';
 import { WalletModule } from './modules/wallet/wallet.module';
@@ -18,7 +19,10 @@ import { ProblemDetailsFilter } from './shared/interface/http/problem-details.fi
 @Module({})
 export class AppModule {
   static forRoot(config: AppConfig): DynamicModule {
-    const workers = config.roles.includes('consumer') ? [WagerConsumerModule] : [];
+    const workers = [
+      ...(config.roles.includes('consumer') ? [WagerConsumerModule] : []),
+      ...(config.roles.includes('outbox-relay') ? [OutboxRelayModule] : []),
+    ];
     return {
       module: AppModule,
       imports: [
