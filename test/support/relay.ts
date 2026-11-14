@@ -15,7 +15,11 @@ export interface RelayOptions {
 }
 
 /** A real relay (PostgreSQL store + SQS publisher) tuned for fast tests. */
-export function createTestRelay(app: TestApplication, sqs: SQSClient, options: RelayOptions): OutboxRelay {
+export function createTestRelay(
+  app: TestApplication,
+  sqs: SQSClient,
+  options: RelayOptions,
+): OutboxRelay {
   return new OutboxRelay({
     store: new MikroOrmOutboxStore(app.orm),
     publisher: new SqsEventPublisher(sqs, options.eventsQueueUrl),
@@ -42,7 +46,11 @@ export async function drainEvents(sqs: SQSClient, queueUrl: string): Promise<Rec
   const received: ReceivedEvent[] = [];
   for (let attempt = 0; attempt < 10; attempt++) {
     const { Messages = [] } = await sqs.send(
-      new ReceiveMessageCommand({ QueueUrl: queueUrl, MaxNumberOfMessages: 10, WaitTimeSeconds: 1 }),
+      new ReceiveMessageCommand({
+        QueueUrl: queueUrl,
+        MaxNumberOfMessages: 10,
+        WaitTimeSeconds: 1,
+      }),
     );
     if (Messages.length === 0) break;
     for (const message of Messages) {
@@ -54,7 +62,9 @@ export async function drainEvents(sqs: SQSClient, queueUrl: string): Promise<Rec
         body,
       });
       const { DeleteMessageCommand } = await import('@aws-sdk/client-sqs');
-      await sqs.send(new DeleteMessageCommand({ QueueUrl: queueUrl, ReceiptHandle: message.ReceiptHandle }));
+      await sqs.send(
+        new DeleteMessageCommand({ QueueUrl: queueUrl, ReceiptHandle: message.ReceiptHandle }),
+      );
     }
   }
   return received;
