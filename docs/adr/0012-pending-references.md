@@ -36,6 +36,29 @@ current backoff.
 **Rationale for the limit.** Game rounds are short. A reference that has not appeared after ~13 minutes is
 almost certainly lost, and the provider can resubmit.
 
+## Implementation notes (phase 7)
+
+- **Policy.** `ReferenceRetryPolicy` (domain) owns the schedule: retry _n_ waits `min(1 s × 2^(n−1), 5 min)`,
+  and after attempt 10 the transaction is rejected. Arrival uses the same policy for retry 1.
+- **Claim.** One autocommit statement, as in the outbox relay:
+  `UPDATE wager_transactions SET next_reference_attempt_at = now + lease FROM (SELECT id ... WHERE status =
+'PENDING_REFERENCE' AND next_reference_attempt_at <= now ... FOR UPDATE SKIP LOCKED)`. It returns the
+  attempt count at claim time.
+- **Attempt.** One SQL transaction:
+  - wallet row lock;
+  - re-read the row, and skip it unless it is still `PENDING_REFERENCE` with the claimed attempt count;
+  - resolve the reference and run the same `WagerTransactionProcessor` as on arrival;
+  - write the ledger, wallet, events and nudge through the effects shared with `SubmitWagerTransaction`.
+
+  A worker that resumes after its lease expired therefore never repeats an attempt.
+
+- **Exhaustion.** `REFERENCE_NOT_FOUND`, or `REFERENCE_NOT_PROCESSED` when the reference exists but never
+  settled (e.g. a ROLLBACK of a REFUND that is itself still pending).
+- **Config:** `REFERENCE_RETRY_BATCH_SIZE`, `_LEASE_MS`, `_POLL_INTERVAL_MS`, `_BASE_MS`, `_MAX_MS`,
+  `_MAX_ATTEMPTS`.
+- **Process.** `APP_ROLES=retry-worker`. Any number of replicas can run.
+- **Flow diagram:** [`docs/diagrams/retry-worker-flow.md`](../diagrams/retry-worker-flow.md).
+
 ## Consequences
 
 - Out-of-order delivery converges without busy loops (§13 concurrency scenario 7).

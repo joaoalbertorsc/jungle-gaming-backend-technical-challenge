@@ -72,15 +72,16 @@ throwaway database (`test_*`), cloned from a migrated template (`wagering_templa
 
 ## Useful commands
 
-| Command                                                    | Purpose                                         |
-| ---------------------------------------------------------- | ----------------------------------------------- |
-| `docker compose run --rm migrate`                          | Apply pending migrations                        |
-| `docker compose run --rm workspace bun run migration:down` | Revert the last migration (test database)       |
-| `docker compose run --rm sqs-init`                         | (Re)create the queues                           |
-| `docker compose logs -f api`                               | Follow API logs                                 |
-| `docker compose up -d --scale consumer=3 consumer`         | Run three SQS consumer instances                |
-| `docker compose up -d outbox-relay`                        | Publish outbox events to `wagering-events.fifo` |
-| `docker compose down --volumes`                            | Stop everything and drop the data volumes       |
+| Command                                                    | Purpose                                           |
+| ---------------------------------------------------------- | ------------------------------------------------- |
+| `docker compose run --rm migrate`                          | Apply pending migrations                          |
+| `docker compose run --rm workspace bun run migration:down` | Revert the last migration (test database)         |
+| `docker compose run --rm sqs-init`                         | (Re)create the queues                             |
+| `docker compose logs -f api`                               | Follow API logs                                   |
+| `docker compose up -d --scale consumer=3 consumer`         | Run three SQS consumer instances                  |
+| `docker compose up -d outbox-relay`                        | Publish outbox events to `wagering-events.fifo`   |
+| `docker compose up -d retry-worker`                        | Retry `PENDING_REFERENCE` transactions (ADR-0012) |
+| `docker compose down --volumes`                            | Stop everything and drop the data volumes         |
 
 ## Host ports
 
