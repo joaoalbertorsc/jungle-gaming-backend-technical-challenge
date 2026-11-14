@@ -14,7 +14,7 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | 6     | Outbox relay                          | 3     | 27         | ✅ Done |
 | 7     | Pending-reference worker              | 2     | 29         | ✅ Done |
 | 8     | Concurrency suite                     | 5     | 34         | ✅ Done |
-| 9     | Observability                         | 2     | 36         | ⬜      |
+| 9     | Observability                         | 2     | 36         | ✅ Done |
 | 10    | Documentation consolidation           | 3     | 39         | ⬜      |
 | 11    | Load test (optional)                  | 2     | 41         | ⬜      |
 | 12    | Keycloak authentication (optional)    | 3     | 44         | ⬜      |
@@ -84,9 +84,9 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 
 - [x] The 8 mandatory scenarios (§13) with real parallelism and ≥ 3 processes; final ledger invariant
 
-## Phase 9: Observability
+## Phase 9: Observability ✅
 
-- [ ] Structured logs with correlation, redaction, Prometheus metrics
+- [x] Structured logs with correlation, redaction, Prometheus metrics
 
 ## Phase 10: Documentation consolidation
 

@@ -47,7 +47,7 @@ See [`docs/diagrams/module-structure.md`](docs/diagrams/module-structure.md) and
 | Out-of-order references    | `PENDING_REFERENCE` + retry worker, 10 attempts with backoff                 | [0012](docs/adr/0012-pending-references.md)                |
 | Queries and reconciliation | Keyset cursor; snapshot reconciliation that never writes                     | [0013](docs/adr/0013-ledger-queries-and-reconciliation.md) |
 | Authentication             | Deferred behind a guard and port; Keycloak design documented                 | [0014](docs/adr/0014-authentication.md)                    |
-| Observability              | pino JSON, correlation via AsyncLocalStorage, Prometheus metrics             | [0015](docs/adr/0015-observability.md)                     |
+| Observability              | JSON logs with redaction, explicit correlation, Prometheus `/metrics`        | [0015](docs/adr/0015-observability.md)                     |
 | SQS emulator               | MiniStack (no auth token), proven by a contract suite                        | [0016](docs/adr/0016-sqs-emulator.md)                      |
 | Testing                    | TDD; real Postgres + SQS; ≥ 3 processes; ledger invariant on every test      | [0017](docs/adr/0017-testing-strategy.md)                  |
 

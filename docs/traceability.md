@@ -145,12 +145,12 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 
 ## §12 Observability
 
-| ID     | Requirement                                                                    | Enforced by                       | Tests                         | Status |
-| ------ | ------------------------------------------------------------------------------ | --------------------------------- | ----------------------------- | ------ |
-| R-12.1 | JSON logs with correlationId, messageId, transactionId, walletId, providerId   |                                   |                               | ⬜     |
-| R-12.2 | No sensitive data or full financial payloads in logs                           |                                   |                               | ⬜     |
-| R-12.3 | Metrics: status, duplicates, retries, DLQ, lock conflicts, outbox lag, latency |                                   |                               | ⬜     |
-| R-12.4 | Separate liveness and readiness                                                | Separate live and ready endpoints | `test/e2e/health.e2e.spec.ts` | ✅     |
+| ID     | Requirement                                                                    | Enforced by                                                                                                    | Tests                                                                                                                      | Status |
+| ------ | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------ |
+| R-12.1 | JSON logs with correlationId, messageId, transactionId, walletId, providerId   | `JsonLogger` (+ Nest's logs); correlation fields on every wager log line (HTTP, SQS, worker); access log       | `test/unit/infrastructure/observability/json-logger.spec.ts`, `test/e2e/observability.e2e.spec.ts`                         | ✅     |
+| R-12.2 | No sensitive data or full financial payloads in logs                           | Redaction of credentials, `payload`, `body`, `money` at any depth; errors without stacks; amounts never logged | `test/unit/infrastructure/observability/json-logger.spec.ts`, `test/e2e/observability.e2e.spec.ts` (no amount in any line) | ✅     |
+| R-12.3 | Metrics: status, duplicates, retries, DLQ, lock conflicts, outbox lag, latency | `PrometheusMetrics` on `/metrics` (API) and `METRICS_PORT` (workers); catalogue in `docs/observability.md`     | `test/unit/infrastructure/observability/prometheus-metrics.spec.ts`, `test/e2e/observability.e2e.spec.ts`                  | ✅     |
+| R-12.4 | Separate liveness and readiness                                                | Separate live and ready endpoints                                                                              | `test/e2e/health.e2e.spec.ts`                                                                                              | ✅     |
 
 ## §13 Mandatory tests
 
