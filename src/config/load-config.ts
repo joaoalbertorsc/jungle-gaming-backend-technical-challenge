@@ -45,6 +45,18 @@ export interface AppConfig {
     readonly retryBaseMs: number;
     readonly retryMaxMs: number;
   };
+  /** The PENDING_REFERENCE retry worker (ADR-0012). */
+  readonly referenceRetry: {
+    readonly batchSize: number;
+    /** How long a claim protects a transaction from other workers. */
+    readonly leaseMs: number;
+    readonly pollIntervalMs: number;
+    /** Wait before retry 1; it doubles on each attempt up to `maxMs`. */
+    readonly baseMs: number;
+    readonly maxMs: number;
+    /** Attempts before the transaction is rejected with REFERENCE_NOT_FOUND. */
+    readonly maxAttempts: number;
+  };
 }
 
 const rolesSchema = z
@@ -84,6 +96,12 @@ const envSchema = z.object({
   OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(10).max(60_000).default(500),
   OUTBOX_RETRY_BASE_MS: z.coerce.number().int().min(1).max(60_000).default(1_000),
   OUTBOX_RETRY_MAX_MS: z.coerce.number().int().min(1).max(3_600_000).default(300_000),
+  REFERENCE_RETRY_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(50),
+  REFERENCE_RETRY_LEASE_MS: z.coerce.number().int().min(100).max(600_000).default(30_000),
+  REFERENCE_RETRY_POLL_INTERVAL_MS: z.coerce.number().int().min(10).max(60_000).default(500),
+  REFERENCE_RETRY_BASE_MS: z.coerce.number().int().min(1).max(60_000).default(1_000),
+  REFERENCE_RETRY_MAX_MS: z.coerce.number().int().min(1).max(3_600_000).default(300_000),
+  REFERENCE_RETRY_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 export class ConfigValidationError extends Error {
@@ -139,6 +157,14 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): A
       pollIntervalMs: parsed.OUTBOX_POLL_INTERVAL_MS,
       retryBaseMs: parsed.OUTBOX_RETRY_BASE_MS,
       retryMaxMs: Math.max(parsed.OUTBOX_RETRY_MAX_MS, parsed.OUTBOX_RETRY_BASE_MS),
+    },
+    referenceRetry: {
+      batchSize: parsed.REFERENCE_RETRY_BATCH_SIZE,
+      leaseMs: parsed.REFERENCE_RETRY_LEASE_MS,
+      pollIntervalMs: parsed.REFERENCE_RETRY_POLL_INTERVAL_MS,
+      baseMs: parsed.REFERENCE_RETRY_BASE_MS,
+      maxMs: Math.max(parsed.REFERENCE_RETRY_MAX_MS, parsed.REFERENCE_RETRY_BASE_MS),
+      maxAttempts: parsed.REFERENCE_RETRY_MAX_ATTEMPTS,
     },
   };
 }

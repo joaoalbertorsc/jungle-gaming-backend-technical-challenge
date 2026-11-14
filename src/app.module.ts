@@ -7,6 +7,7 @@ import { SqsModule } from './infrastructure/messaging/sqs.module';
 import { SystemModule } from './infrastructure/system/system.module';
 import { HealthModule } from './modules/health/health.module';
 import { OutboxRelayModule } from './modules/messaging/interface/outbox-relay.module';
+import { RetryWorkerModule } from './modules/wagering/interface/retry-worker.module';
 import { WagerConsumerModule } from './modules/wagering/interface/sqs/wager-consumer.module';
 import { WageringModule } from './modules/wagering/wagering.module';
 import { WalletModule } from './modules/wallet/wallet.module';
@@ -22,6 +23,7 @@ export class AppModule {
     const workers = [
       ...(config.roles.includes('consumer') ? [WagerConsumerModule] : []),
       ...(config.roles.includes('outbox-relay') ? [OutboxRelayModule] : []),
+      ...(config.roles.includes('retry-worker') ? [RetryWorkerModule] : []),
     ];
     return {
       module: AppModule,

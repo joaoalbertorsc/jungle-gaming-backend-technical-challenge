@@ -54,6 +54,9 @@ export class RecordingMetrics implements ApplicationMetrics {
   outboxFailed(): void {
     this.calls.push('outbox-failed');
   }
+  referenceRetry(result: string): void {
+    this.calls.push(`reference-retry:${result}`);
+  }
 }
 
 export class RecordingLogger implements ApplicationLogger {

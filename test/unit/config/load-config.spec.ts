@@ -66,6 +66,28 @@ describe('loadConfig', () => {
       });
     });
 
+    it('retries pending references as ADR-0012 sets out (10 attempts, 1 s doubling to 5 min)', () => {
+      expect(loadConfig(minimalEnv).referenceRetry).toEqual({
+        batchSize: 50,
+        leaseMs: 30_000,
+        pollIntervalMs: 500,
+        baseMs: 1_000,
+        maxMs: 300_000,
+        maxAttempts: 10,
+      });
+    });
+
+    it('never lets the retry cap fall below its base delay', () => {
+      const config = loadConfig({
+        ...minimalEnv,
+        REFERENCE_RETRY_BASE_MS: '5000',
+        REFERENCE_RETRY_MAX_MS: '1000',
+        REFERENCE_RETRY_MAX_ATTEMPTS: '3',
+      });
+
+      expect(config.referenceRetry).toMatchObject({ baseMs: 5_000, maxMs: 5_000, maxAttempts: 3 });
+    });
+
     it('uses the queue names defined by the challenge', () => {
       expect(loadConfig(minimalEnv).sqs.queues).toEqual({
         wagerTransactions: 'wager-transactions.fifo',

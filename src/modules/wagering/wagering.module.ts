@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_CONFIG } from '../../config/app-config.module';
+import type { AppConfig } from '../../config/load-config';
 import {
   APPLICATION_METRICS,
   type ApplicationMetrics,
@@ -13,6 +15,7 @@ import { UNIT_OF_WORK, type UnitOfWork } from '../../shared/application/unit-of-
 import { SubmitWagerTransaction } from './application/submit-wager-transaction';
 import { GetWagerTransaction } from './application/wager-transaction-queries';
 import { WagerTransactionsController } from './interface/http/wager-transactions.controller';
+import { referenceRetryPolicy } from './interface/reference-retry-policy';
 
 /** Use cases are plain classes; Nest builds them through factories (no decorators in application). */
 @Module({
@@ -26,8 +29,17 @@ import { WagerTransactionsController } from './interface/http/wager-transactions
         clock: Clock,
         faults: FaultInjector,
         metrics: ApplicationMetrics,
-      ) => new SubmitWagerTransaction(unitOfWork, ids, clock, faults, metrics),
-      inject: [UNIT_OF_WORK, ID_GENERATOR, CLOCK, FAULT_INJECTOR, APPLICATION_METRICS],
+        config: AppConfig,
+      ) =>
+        new SubmitWagerTransaction(
+          unitOfWork,
+          ids,
+          clock,
+          faults,
+          metrics,
+          referenceRetryPolicy(config.referenceRetry),
+        ),
+      inject: [UNIT_OF_WORK, ID_GENERATOR, CLOCK, FAULT_INJECTOR, APPLICATION_METRICS, APP_CONFIG],
     },
     {
       provide: GetWagerTransaction,

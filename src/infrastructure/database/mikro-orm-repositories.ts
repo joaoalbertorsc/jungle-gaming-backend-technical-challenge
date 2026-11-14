@@ -2,7 +2,10 @@ import { type EntityManager, LockMode } from '@mikro-orm/postgresql';
 import type { InboxRepository, OutboxRepository } from '../../modules/messaging/application/ports';
 import type { InboxMessage } from '../../modules/messaging/domain/inbox-message';
 import type { OutboxMessage } from '../../modules/messaging/domain/outbox-message';
-import type { WagerTransactionRepository } from '../../modules/wagering/application/ports';
+import type {
+  PendingReferenceState,
+  WagerTransactionRepository,
+} from '../../modules/wagering/application/ports';
 import {
   type WagerTransaction,
   WagerTransactionKind,
@@ -151,6 +154,31 @@ class MikroOrmWagerTransactionRepository implements WagerTransactionRepository {
       },
       { nextReferenceAttemptAt: at, updatedAt: at },
     );
+  }
+
+  async findPendingReference(id: string): Promise<PendingReferenceState | undefined> {
+    const record = await this.em.findOne(WagerTransactionRecord, {
+      id,
+      status: WagerTransactionStatus.PendingReference,
+    });
+    return record === null
+      ? undefined
+      : { transaction: transactionFromRecord(record), attempts: record.referenceAttempts };
+  }
+
+  recordReferenceAttempt(
+    id: string,
+    attempt: {
+      readonly count: number;
+      readonly nextAttemptAt: Date | undefined;
+      readonly at: Date;
+    },
+  ): void {
+    Object.assign(this.em.getReference(WagerTransactionRecord, id), {
+      referenceAttempts: attempt.count,
+      nextReferenceAttemptAt: attempt.nextAttemptAt ?? null,
+      updatedAt: attempt.at,
+    });
   }
 
   private one(record: WagerTransactionRecord | null): WagerTransaction | undefined {

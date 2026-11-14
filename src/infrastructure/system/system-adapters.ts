@@ -55,6 +55,9 @@ export class NoopMetrics implements ApplicationMetrics {
   outboxFailed(): void {
     // no-op
   }
+  referenceRetry(): void {
+    // no-op
+  }
 }
 
 /** Minimal structured logger until pino lands (phase 9): one JSON line per entry. */

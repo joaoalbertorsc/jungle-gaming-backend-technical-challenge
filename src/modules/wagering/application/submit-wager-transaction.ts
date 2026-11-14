@@ -12,25 +12,14 @@ import type {
   RequestContext,
 } from '../../../shared/application/ports';
 import type { Repositories, UnitOfWork } from '../../../shared/application/unit-of-work';
-import { ExponentialBackoff } from '../../../shared/domain/exponential-backoff';
-import type { EventContext } from '../../../shared/domain/integration-event';
 import { Money, type MoneyProps } from '../../../shared/domain/money';
 import type { InboxMessage } from '../../messaging/domain/inbox-message';
-import { OutboxMessage } from '../../messaging/domain/outbox-message';
-import { WalletBalanceChanged } from '../../wallet/domain/events/wallet-balance-changed';
-import type { Wallet } from '../../wallet/domain/wallet';
-import {
-  WagerTransactionPendingReference,
-  WagerTransactionProcessed,
-  WagerTransactionRejected,
-} from '../domain/events/wager-transaction-events';
 import { decideIdempotency, type IdempotencyDecision } from '../domain/idempotency';
+import { ReferenceRetryPolicy } from '../domain/reference-retry-policy';
 import { WagerTransaction, WagerTransactionKind } from '../domain/wager-transaction';
-import {
-  type ProcessWagerOutcome,
-  WagerTransactionProcessor,
-} from '../domain/wager-transaction-processor';
+import { WagerTransactionProcessor } from '../domain/wager-transaction-processor';
 import { InvalidWagerTransactionError } from '../domain/wagering-errors';
+import { outcomeEvents, recordOutcomeEffects, resolveReference } from './wager-outcome-effects';
 import { toWagerOutcome, type WagerOutcome } from './wager-views';
 
 export interface SubmitWagerTransactionCommand {
@@ -47,13 +36,6 @@ export interface SubmitWagerTransactionCommand {
   readonly referenceExternalTransactionId?: string | undefined;
   readonly context: RequestContext;
 }
-
-/** First retry of a PENDING_REFERENCE transaction (the full policy lives with the worker, ADR-0012). */
-export const REFERENCE_RETRY_BACKOFF = new ExponentialBackoff({
-  baseMs: 1_000,
-  factor: 2,
-  maxMs: 300_000,
-});
 
 /** A concurrent writer won one of these races; re-running the unit of work resolves it. */
 const RETRYABLE_UNIQUE_CONSTRAINTS = new Set([
@@ -80,6 +62,8 @@ export class SubmitWagerTransaction {
     private readonly clock: Clock,
     private readonly faults: FaultInjector,
     private readonly metrics: ApplicationMetrics,
+    /** Schedules the first worker retry of a transaction parked as PENDING_REFERENCE (ADR-0012). */
+    private readonly referenceRetry: ReferenceRetryPolicy = ReferenceRetryPolicy.DEFAULT,
   ) {}
 
   /**
@@ -131,58 +115,41 @@ export class SubmitWagerTransaction {
     transaction: WagerTransaction,
     context: RequestContext,
   ): Promise<WagerOutcome> {
-    const { wallets, transactions, ledger, outbox } = repositories;
-
     // The wallet row lock serializes every operation on this wallet (ADR-0007).
-    const wallet = await wallets.lockById(transaction.walletId);
+    const wallet = await repositories.wallets.lockById(transaction.walletId);
 
     // Authoritative idempotency check, now that concurrent requests are serialized.
     const decision = await this.decide(repositories, transaction);
     if (decision.type !== 'new') return this.resolveKnown(decision, context);
     if (wallet === undefined) throw new UnknownWalletError(transaction.walletId);
 
-    const reference =
-      transaction.referenceExternalTransactionId === undefined
-        ? undefined
-        : await transactions.findByProviderExternalId(
-            transaction.providerId,
-            transaction.referenceExternalTransactionId,
-          );
-    const referenceAlreadyReversed =
-      reference !== undefined && transaction.isReversal()
-        ? await transactions.isReversed(reference.id)
-        : false;
-
     const at = this.clock.now();
     const outcome = this.processor.process({
       transaction,
       wallet,
-      reference,
-      referenceAlreadyReversed,
+      ...(await resolveReference(repositories.transactions, transaction)),
       ledgerEntryId: this.ids.next(),
       at,
     });
 
-    transactions.add(
+    repositories.transactions.add(
       transaction,
       outcome.type === 'pending-reference'
-        ? { nextReferenceAttemptAt: REFERENCE_RETRY_BACKOFF.nextAttemptAt(at, 1) }
+        ? { nextReferenceAttemptAt: this.referenceRetry.firstRetryAt(at) }
         : {},
     );
-    if (outcome.type === 'processed' && outcome.ledgerEntry !== undefined) {
-      ledger.append(outcome.ledgerEntry);
-      wallets.save(wallet);
-    }
-    outbox.enqueue(...this.events(transaction, wallet, outcome, context, at));
-
-    // Transactions parked on this one can be retried right away (ADR-0012).
-    if (transaction.isTerminal()) {
-      await transactions.nudgeWaitingOn(
-        transaction.providerId,
-        transaction.externalTransactionId,
-        at,
-      );
-    }
+    await recordOutcomeEffects(repositories, {
+      transaction,
+      wallet,
+      outcome,
+      events: outcomeEvents(transaction, wallet, outcome, () => ({
+        eventId: this.ids.next(),
+        correlationId: context.correlationId,
+        causationId: context.causationId,
+        occurredAt: at,
+      })),
+      at,
+    });
 
     this.faults.hit('wager.before-commit');
     return toWagerOutcome(transaction, false);
@@ -209,41 +176,6 @@ export class SubmitWagerTransaction {
     if (decision.type === 'conflict') throw new IdempotencyConflictError(decision.reason);
     this.metrics.idempotentReplay(context.channel);
     return toWagerOutcome(decision.transaction, true);
-  }
-
-  private events(
-    transaction: WagerTransaction,
-    wallet: Wallet,
-    outcome: ProcessWagerOutcome,
-    context: RequestContext,
-    at: Date,
-  ): OutboxMessage[] {
-    const eventContext = (): EventContext => ({
-      eventId: this.ids.next(),
-      correlationId: context.correlationId,
-      causationId: context.causationId,
-      occurredAt: at,
-    });
-
-    switch (outcome.type) {
-      case 'processed':
-        return [
-          OutboxMessage.enqueue(WagerTransactionProcessed.from(transaction, eventContext())),
-          ...(outcome.ledgerEntry === undefined
-            ? []
-            : [
-                OutboxMessage.enqueue(
-                  WalletBalanceChanged.from(wallet, outcome.ledgerEntry, eventContext()),
-                ),
-              ]),
-        ];
-      case 'rejected':
-        return [OutboxMessage.enqueue(WagerTransactionRejected.from(transaction, eventContext()))];
-      case 'pending-reference':
-        return [
-          OutboxMessage.enqueue(WagerTransactionPendingReference.from(transaction, eventContext())),
-        ];
-    }
   }
 
   private newTransaction(command: SubmitWagerTransactionCommand): WagerTransaction {

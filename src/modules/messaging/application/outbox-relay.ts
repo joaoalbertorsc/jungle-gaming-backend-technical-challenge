@@ -1,3 +1,4 @@
+import { PollingLoop } from '../../../shared/application/polling-loop';
 import type {
   ApplicationLogger,
   ApplicationMetrics,
@@ -48,10 +49,19 @@ export interface PublishRound {
  * that consumers absorb by deduplicating on eventId. Any number of relays can run concurrently.
  */
 export class OutboxRelay {
-  private stopping = false;
-  private loop: Promise<void> | undefined;
+  private readonly loop: PollingLoop;
 
-  constructor(private readonly settings: OutboxRelaySettings) {}
+  constructor(private readonly settings: OutboxRelaySettings) {
+    this.loop = new PollingLoop({
+      name: 'outbox relay',
+      pollIntervalMs: settings.pollIntervalMs,
+      logger: settings.logger,
+      round: async () => {
+        const round = await this.publishOnce();
+        return round.published.length > 0 || round.failed.length > 0;
+      },
+    });
+  }
 
   async publishOnce(): Promise<PublishRound> {
     const { store, publisher, clock, batchSize, leaseMs } = this.settings;
@@ -80,37 +90,12 @@ export class OutboxRelay {
   }
 
   start(): void {
-    if (this.loop !== undefined) return;
-    this.stopping = false;
-    this.loop = this.run();
+    this.loop.start();
   }
 
   /** Finishes the current round; claimed but unpublished messages are retried after their lease. */
-  async stop(): Promise<void> {
-    this.stopping = true;
-    await this.loop;
-    this.loop = undefined;
-  }
-
-  private async run(): Promise<void> {
-    while (!this.isStopping()) {
-      try {
-        const round = await this.publishOnce();
-        if (round.published.length === 0 && round.failed.length === 0) {
-          await Bun.sleep(this.settings.pollIntervalMs);
-        }
-      } catch (error) {
-        this.settings.logger.error('outbox relay round failed', {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await Bun.sleep(this.settings.pollIntervalMs);
-      }
-    }
-  }
-
-  /** Read through a method: `stopping` changes while this instance awaits, which narrowing ignores. */
-  private isStopping(): boolean {
-    return this.stopping;
+  stop(): Promise<void> {
+    return this.loop.stop();
   }
 
   private async fail(message: OutboxMessage, error: unknown): Promise<void> {
