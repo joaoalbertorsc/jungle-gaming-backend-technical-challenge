@@ -11,7 +11,7 @@ sequenceDiagram
   participant DB as PostgreSQL
 
   P->>U: command + Idempotency-Key
-  U->>U: WagerTransaction.create() validates kind, reference rules, money; computes payloadHash
+  U->>U: WagerTransaction.create() validates kind, reference rules and money, computes payloadHash
   U->>DB: lookup by idempotency key / provider + external id (no lock, one snapshot)
   alt already stored
     U-->>P: replay (same outcome, balance observed then) or 409 conflict
@@ -20,7 +20,7 @@ sequenceDiagram
       note over U,DB: one SQL transaction, SET LOCAL lock_timeout
       U->>DB: SELECT wallet ... FOR UPDATE
       U->>DB: idempotency lookup again (authoritative, now serialized)
-      U->>DB: resolve reference; is it already reversed?
+      U->>DB: resolve reference, is it already reversed?
       U->>U: WagerTransactionProcessor.process(): PROCESSED, REJECTED or PENDING_REFERENCE
       U->>DB: INSERT wager_transactions (+ retry schedule if parked)
       U->>DB: INSERT wallet_ledger_entries + UPDATE wallets (only when the balance moves)
@@ -28,7 +28,7 @@ sequenceDiagram
       U->>DB: nudge transactions waiting on this one
       U->>DB: COMMIT (deferred check: balance = ledger entry of its version)
     end
-    U-->>P: outcome (HTTP 201 / 422 / 202; SQS ack)
+    U-->>P: outcome (HTTP 201 / 422 / 202, SQS ack)
   end
 ```
 
