@@ -10,8 +10,11 @@ Docker Compose.
 - Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) and the decision records in [`docs/adr/`](docs/adr/)
 - Delivery plan and progress: [`docs/PLAN.md`](docs/PLAN.md)
 - Requirements → tests: [`docs/traceability.md`](docs/traceability.md)
+- Final audit (eliminatory failures, gaps): [`docs/audit.md`](docs/audit.md)
 
-> **Status:** phase 0 (project setup) is complete. The domain and the wagering flows land phase by phase; see the plan.
+> **Status:** feature-complete for the mandatory scope: HTTP and SQS entry points, outbox relay, retry worker,
+> the concurrency suite and observability. The optional load test and Keycloak integration are not included;
+> see [`docs/traceability.md`](docs/traceability.md).
 
 ## Prerequisites
 
