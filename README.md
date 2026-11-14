@@ -63,11 +63,13 @@ docker compose run --rm workspace bun run test:unit
 docker compose run --rm workspace bun run test:unit:coverage
 docker compose run --rm workspace bun run test:integration
 docker compose run --rm workspace bun run test:e2e
+docker compose run --rm workspace bun run test:concurrency
 ```
 
 Integration and e2e suites run against real PostgreSQL and MiniStack containers, which `workspace` starts
 automatically. They fail, never skip, when the infrastructure is unavailable. Each test file runs in its own
-throwaway database (`test_*`), cloned from a migrated template (`wagering_template`). Run
+throwaway database (`test_*`), cloned from a migrated template (`wagering_template`). The concurrency suite
+starts every role as a separate OS process (`bun src/main.ts`), then kills and restarts them mid-test (§13). Run
 `docker compose down --volumes` to reset everything.
 
 ## Useful commands
