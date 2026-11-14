@@ -37,6 +37,14 @@ export interface AppConfig {
       readonly retryMaxMs: number;
     };
   };
+  readonly outbox: {
+    readonly batchSize: number;
+    /** How long a claim protects a message from other relays (ADR-0011). */
+    readonly leaseMs: number;
+    readonly pollIntervalMs: number;
+    readonly retryBaseMs: number;
+    readonly retryMaxMs: number;
+  };
 }
 
 const rolesSchema = z
@@ -71,6 +79,11 @@ const envSchema = z.object({
   CONSUMER_DRAIN_TIMEOUT_MS: z.coerce.number().int().min(0).max(300_000).default(15_000),
   SQS_RETRY_BASE_MS: z.coerce.number().int().min(1).max(60_000).default(1_000),
   SQS_RETRY_MAX_MS: z.coerce.number().int().min(1).max(43_200_000).default(60_000),
+  OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(50),
+  OUTBOX_LEASE_MS: z.coerce.number().int().min(100).max(600_000).default(30_000),
+  OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(10).max(60_000).default(500),
+  OUTBOX_RETRY_BASE_MS: z.coerce.number().int().min(1).max(60_000).default(1_000),
+  OUTBOX_RETRY_MAX_MS: z.coerce.number().int().min(1).max(3_600_000).default(300_000),
 });
 
 export class ConfigValidationError extends Error {
@@ -119,6 +132,13 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): A
         retryBaseMs: parsed.SQS_RETRY_BASE_MS,
         retryMaxMs: Math.max(parsed.SQS_RETRY_MAX_MS, parsed.SQS_RETRY_BASE_MS),
       },
+    },
+    outbox: {
+      batchSize: parsed.OUTBOX_BATCH_SIZE,
+      leaseMs: parsed.OUTBOX_LEASE_MS,
+      pollIntervalMs: parsed.OUTBOX_POLL_INTERVAL_MS,
+      retryBaseMs: parsed.OUTBOX_RETRY_BASE_MS,
+      retryMaxMs: Math.max(parsed.OUTBOX_RETRY_MAX_MS, parsed.OUTBOX_RETRY_BASE_MS),
     },
   };
 }

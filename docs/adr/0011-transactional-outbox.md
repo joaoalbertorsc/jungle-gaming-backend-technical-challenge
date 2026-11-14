@@ -37,6 +37,22 @@ a test proving that a duplicate publish has no effect (§11 step 5).
 
 **Outbox lag.** `now() - min(occurred_at)` over unpublished rows, exported as a metric.
 
+## Implementation notes (phase 6)
+
+- **Claim.** One autocommit statement:
+  `UPDATE outbox_messages SET next_attempt_at = now + lease FROM (SELECT id ... WHERE published_at IS NULL
+AND next_attempt_at <= now ORDER BY next_attempt_at, occurred_at LIMIT n FOR UPDATE SKIP LOCKED)`.
+  The lease (default 30 s) protects the claim; no row lock outlives the statement.
+- **Mark published** only after `SendMessage` succeeded, conditioned on `published_at IS NULL`.
+- **Failure.** `attempts + 1`, `last_error`, and `next_attempt_at` from exponential backoff (1 s doubling up
+  to 5 min).
+- **Config:** `OUTBOX_BATCH_SIZE`, `OUTBOX_LEASE_MS`, `OUTBOX_POLL_INTERVAL_MS`, `OUTBOX_RETRY_BASE_MS`,
+  `OUTBOX_RETRY_MAX_MS`.
+- **Process.** `APP_ROLES=outbox-relay`. Any number of replicas can run.
+- **Reference consumer.** `test/support/relay.ts` `applyOnce()` records the `eventId` in an inbox and proves
+  that a duplicate publication is applied once.
+- **Flow diagram:** [`docs/diagrams/outbox-relay-flow.md`](../diagrams/outbox-relay-flow.md).
+
 ## Consequences
 
 - Events are never lost once committed, and never published for rolled-back work.

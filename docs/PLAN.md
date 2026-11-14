@@ -11,7 +11,7 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | 3     | Use cases                             | 6     | 17         | ✅ Done |
 | 4     | HTTP API                              | 3     | 20         | ✅ Done |
 | 5     | SQS consumer                          | 4     | 24         | ✅ Done |
-| 6     | Outbox relay                          | 3     | 27         | ⬜      |
+| 6     | Outbox relay                          | 3     | 27         | ✅ Done |
 | 7     | Pending-reference worker              | 2     | 29         | ⬜      |
 | 8     | Concurrency suite                     | 5     | 34         | ⬜      |
 | 9     | Observability                         | 2     | 36         | ⬜      |
@@ -71,10 +71,10 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 - [x] Error classification, visibility backoff, explicit DLQ for permanent errors
 - [x] Graceful shutdown on SIGTERM
 
-## Phase 6: Outbox relay
+## Phase 6: Outbox relay ✅
 
-- [ ] Claim with `SKIP LOCKED` + lease; publish; mark published; retry with backoff
-- [ ] Reference event consumer deduplicating by `eventId`
+- [x] Claim with `SKIP LOCKED` + lease; publish; mark published; retry with backoff
+- [x] Reference event consumer deduplicating by `eventId`
 
 ## Phase 7: Pending-reference worker
 

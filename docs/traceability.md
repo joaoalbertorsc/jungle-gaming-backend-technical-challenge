@@ -15,12 +15,12 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 
 ## §3 Global invariants
 
-| ID    | Requirement                                                   | Enforced by                                                       | Tests                                                           | Status                          |
-| ----- | ------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------- |
-| R-3.1 | No duplicated credits or debits                               | Wallet row lock, idempotency, single-reversal index, ledger chain | `test/integration/application/submit-wager-transaction.spec.ts` | 🟡 concurrency suite in phase 8 |
-| R-3.2 | No lost confirmed events                                      |                                                                   |                                                                 | ⬜                              |
-| R-3.3 | No negative balance                                           | `Wallet.debit`, `money_amount` domain, wallet lock                | `test/integration/application/submit-wager-transaction.spec.ts` | 🟡 concurrency suite in phase 8 |
-| R-3.4 | Correct under duplicate, out-of-order and concurrent delivery |                                                                   |                                                                 | ⬜                              |
+| ID    | Requirement                                                   | Enforced by                                                                               | Tests                                                           | Status                          |
+| ----- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------- |
+| R-3.1 | No duplicated credits or debits                               | Wallet row lock, idempotency, single-reversal index, ledger chain                         | `test/integration/application/submit-wager-transaction.spec.ts` | 🟡 concurrency suite in phase 8 |
+| R-3.2 | No lost confirmed events                                      | Outbox rows in the same transaction + relay marks published only after the broker accepts | `test/integration/messaging/outbox-relay.spec.ts`               | ✅                              |
+| R-3.3 | No negative balance                                           | `Wallet.debit`, `money_amount` domain, wallet lock                                        | `test/integration/application/submit-wager-transaction.spec.ts` | 🟡 concurrency suite in phase 8 |
+| R-3.4 | Correct under duplicate, out-of-order and concurrent delivery |                                                                                           |                                                                 | ⬜                              |
 
 ## §4 Stack
 
@@ -37,17 +37,17 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 
 ## §5 Inviolable restrictions
 
-| ID    | Requirement                                            | Enforced by                                                            | Tests                                                                                       | Status                          |
-| ----- | ------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------- |
-| R-5.1 | No `number`/`float`/`double` for money                 | `Money` (`bigint`), `money_amount` domain                              | `test/unit/shared/domain/money.spec.ts`, `test/integration/database/wallets.schema.spec.ts` | ✅                              |
-| R-5.2 | No in-memory cache as the idempotency guarantee        | Unique key + stored outcome in PostgreSQL (ADR-0008)                   | `test/integration/application/submit-wager-transaction.spec.ts`                             | ✅                              |
-| R-5.3 | Not relying on SQS FIFO alone for consistency          |                                                                        |                                                                                             | ⬜                              |
-| R-5.4 | No event published before commit                       | Events written to the outbox in the same transaction; relay in phase 6 | `test/integration/application/submit-wager-transaction.spec.ts` (atomicity)                 | 🟡                              |
-| R-5.5 | Ledger entries never updated or deleted                | Append-only triggers + no `UPDATE`/`DELETE` grant                      | `test/integration/database/ledger.schema.spec.ts`                                           | ✅                              |
-| R-5.6 | No global lock shared by all wallets                   | `SELECT ... FOR UPDATE` on one wallet row (ADR-0007)                   | `test/integration/application/submit-wager-transaction.spec.ts` (LOCK_TIMEOUT)              | ✅                              |
-| R-5.7 | No unguarded read → calculate → update                 | Read → calculate → update always under the wallet row lock             | `test/integration/application/submit-wager-transaction.spec.ts`                             | 🟡 concurrency suite in phase 8 |
-| R-5.8 | Correct with multiple instances                        |                                                                        |                                                                                             | ⬜                              |
-| R-5.9 | Uniqueness, immutability, non-negativity in the schema | Constraints, partial unique index, triggers (ADR-0006)                 | `test/integration/database/*.schema.spec.ts`                                                | ✅                              |
+| ID    | Requirement                                            | Enforced by                                                                | Tests                                                                                       | Status                          |
+| ----- | ------------------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------- |
+| R-5.1 | No `number`/`float`/`double` for money                 | `Money` (`bigint`), `money_amount` domain                                  | `test/unit/shared/domain/money.spec.ts`, `test/integration/database/wallets.schema.spec.ts` | ✅                              |
+| R-5.2 | No in-memory cache as the idempotency guarantee        | Unique key + stored outcome in PostgreSQL (ADR-0008)                       | `test/integration/application/submit-wager-transaction.spec.ts`                             | ✅                              |
+| R-5.3 | Not relying on SQS FIFO alone for consistency          |                                                                            |                                                                                             | ⬜                              |
+| R-5.4 | No event published before commit                       | Events exist only as committed outbox rows; the relay publishes afterwards | `test/integration/messaging/outbox-relay.spec.ts` (rolled-back work publishes nothing)      | ✅                              |
+| R-5.5 | Ledger entries never updated or deleted                | Append-only triggers + no `UPDATE`/`DELETE` grant                          | `test/integration/database/ledger.schema.spec.ts`                                           | ✅                              |
+| R-5.6 | No global lock shared by all wallets                   | `SELECT ... FOR UPDATE` on one wallet row (ADR-0007)                       | `test/integration/application/submit-wager-transaction.spec.ts` (LOCK_TIMEOUT)              | ✅                              |
+| R-5.7 | No unguarded read → calculate → update                 | Read → calculate → update always under the wallet row lock                 | `test/integration/application/submit-wager-transaction.spec.ts`                             | 🟡 concurrency suite in phase 8 |
+| R-5.8 | Correct with multiple instances                        |                                                                            |                                                                                             | ⬜                              |
+| R-5.9 | Uniqueness, immutability, non-negativity in the schema | Constraints, partial unique index, triggers (ADR-0006)                     | `test/integration/database/*.schema.spec.ts`                                                | ✅                              |
 
 ## §6 Domain model
 
@@ -135,13 +135,13 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 
 ## §11 Transactional outbox
 
-| ID     | Requirement                                                                           | Enforced by                                            | Tests                                                                                                                 | Status |
-| ------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------ |
-| R-11.1 | Transaction, balance, ledger, inbox and event are atomic                              | Outbox rows in the same transaction (inbox in phase 5) | `test/integration/application/submit-wager-transaction.spec.ts` (atomicity)                                           | 🟡     |
-| R-11.2 | Works with several concurrent publishers                                              |                                                        |                                                                                                                       | ⬜     |
-| R-11.3 | Commit → crash before publish → another instance publishes; duplicate publish is safe |                                                        |                                                                                                                       | ⬜     |
-| R-11.4 | Events: Processed, Rejected, BalanceChanged (only on change), PendingReference        | Events emitted per outcome by the use cases            | `test/integration/application/submit-wager-transaction.spec.ts`, `test/integration/application/create-wallet.spec.ts` | ✅     |
-| R-11.5 | Abstract envelope class, one subclass per event; `data` carries `MoneyProps`          | `IntegrationEvent` + one subclass per event            | `test/unit/shared/domain/integration-event.spec.ts`                                                                   | ✅     |
+| ID     | Requirement                                                                           | Enforced by                                                            | Tests                                                                                                                 | Status |
+| ------ | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------ |
+| R-11.1 | Transaction, balance, ledger, inbox and event are atomic                              | Inbox + transaction + ledger + wallet + outbox in one SQL transaction  | `test/integration/messaging/outbox-relay.spec.ts`, consumer and submit-wager integration specs                        | ✅     |
+| R-11.2 | Works with several concurrent publishers                                              | `FOR UPDATE SKIP LOCKED` claim + lease                                 | `test/integration/messaging/outbox-relay.spec.ts` (two relays in parallel)                                            | ✅     |
+| R-11.3 | Commit → crash before publish → another instance publishes; duplicate publish is safe | Lease expiry hands work to another relay; consumers dedup by `eventId` | `test/integration/messaging/outbox-relay.spec.ts` (dies before publish; dies after publish)                           | ✅     |
+| R-11.4 | Events: Processed, Rejected, BalanceChanged (only on change), PendingReference        | Events emitted per outcome by the use cases                            | `test/integration/application/submit-wager-transaction.spec.ts`, `test/integration/application/create-wallet.spec.ts` | ✅     |
+| R-11.5 | Abstract envelope class, one subclass per event; `data` carries `MoneyProps`          | `IntegrationEvent` + one subclass per event                            | `test/unit/shared/domain/integration-event.spec.ts`                                                                   | ✅     |
 
 ## §12 Observability
 
@@ -164,7 +164,7 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 | T-I1  | Migrations and constraints                                               | `test/integration/database/migrations.spec.ts`, `test/integration/database/*.schema.spec.ts`                                            | ✅                     |
 | T-I2  | Atomicity across wallet, ledger, inbox and outbox                        | submit-wager and create-wallet integration specs (fault before commit), `test/integration/messaging/wager-transaction-consumer.spec.ts` | ✅                     |
 | T-I3  | Inbox and redelivery                                                     | `test/integration/messaging/wager-transaction-consumer.spec.ts`                                                                         | ✅                     |
-| T-I4  | Concurrent publishers on the same outbox                                 |                                                                                                                                         | ⬜                     |
+| T-I4  | Concurrent publishers on the same outbox                                 | `test/integration/messaging/outbox-relay.spec.ts`                                                                                       | ✅                     |
 | T-I5  | Retry and DLQ                                                            | `test/integration/messaging/wager-transaction-consumer.spec.ts` (visibility backoff, redrive to DLQ, permanent failures)                | ✅                     |
 | T-I6  | Recovery after restart                                                   |                                                                                                                                         | ⬜                     |
 | T-C1  | Same bet sent 50 times in parallel → one debit                           |                                                                                                                                         | ⬜                     |
@@ -172,7 +172,7 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 | T-C3  | Different wallets in parallel                                            |                                                                                                                                         | ⬜                     |
 | T-C4  | ≥ 3 processes / instances                                                |                                                                                                                                         | ⬜                     |
 | T-C5  | Worker killed after commit and before ack                                |                                                                                                                                         | ⬜                     |
-| T-C6  | Two publishers on the same outbox                                        |                                                                                                                                         | ⬜                     |
+| T-C6  | Two publishers on the same outbox                                        | `test/integration/messaging/outbox-relay.spec.ts` (two relays claim in parallel; concurrency suite re-runs it across processes)         | ✅                     |
 | T-C7  | ROLLBACK or REFUND delivered before its reference                        |                                                                                                                                         | ⬜                     |
 | T-C8  | Service restart with proof of final consistency                          |                                                                                                                                         | ⬜                     |
 | T-INV | Every test ends with `wallet.balance == balance rebuilt from the ledger` | `assertLedgerMatchesBalance` in every use-case test (`test/support/application.ts`)                                                     | 🟡 extended in phase 8 |
@@ -188,7 +188,7 @@ Status: ✅ done · 🟡 partial · ⬜ pending
 | E-3 | No duplicated debit or credit                                | Wallet lock + idempotency + single-reversal index + ledger chain; proven under concurrency in phase 8 | 🟡     |
 | E-4 | Idempotency not only in memory                               | Idempotency keys and outcomes stored in PostgreSQL; no in-memory cache                                | ✅     |
 | E-5 | Correct with more than one instance                          |                                                                                                       | ⬜     |
-| E-6 | No event published before commit                             |                                                                                                       | ⬜     |
+| E-6 | No event published before commit                             | Transactional outbox; relay publishes only committed rows (ADR-0011)                                  | ✅     |
 | E-7 | Auditable ledger present                                     | Append-only, chained ledger enforced by the schema; API in phase 4                                    | 🟡     |
 | E-8 | PostgreSQL and SQS not replaced entirely by mocks in tests   | ADR-0017, integration suites                                                                          | 🟡     |
 | O-1 | (Optional) Load test via `bun run test:load`                 |                                                                                                       | ⬜     |

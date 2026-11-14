@@ -48,6 +48,12 @@ export class RecordingMetrics implements ApplicationMetrics {
   deadLettered(reason: string): void {
     this.calls.push(`dead-letter:${reason}`);
   }
+  outboxPublished(eventType: string): void {
+    this.calls.push(`outbox-published:${eventType}`);
+  }
+  outboxFailed(): void {
+    this.calls.push('outbox-failed');
+  }
 }
 
 export class RecordingLogger implements ApplicationLogger {

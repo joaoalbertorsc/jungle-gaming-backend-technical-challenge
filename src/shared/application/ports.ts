@@ -12,7 +12,12 @@ export interface IdGenerator {
  * Named points where tests can inject a failure (e.g. a crash just before commit). Production uses
  * a no-op implementation; nothing outside tests can trigger a fault (ADR-0017).
  */
-export type FaultPoint = 'wager.before-commit' | 'wallet.before-commit' | 'consumer.before-ack';
+export type FaultPoint =
+  | 'wager.before-commit'
+  | 'wallet.before-commit'
+  | 'consumer.before-ack'
+  | 'outbox.before-publish'
+  | 'outbox.after-publish';
 
 export interface FaultInjector {
   hit(point: FaultPoint): void;
@@ -44,6 +49,9 @@ export interface ApplicationMetrics {
   messageRetried(reason: string): void;
   /** A message was moved to the dead-letter queue. */
   deadLettered(reason: string): void;
+  outboxPublished(eventType: string): void;
+  /** A publication attempt failed and was rescheduled. */
+  outboxFailed(): void;
 }
 
 export const CLOCK = Symbol('CLOCK');
