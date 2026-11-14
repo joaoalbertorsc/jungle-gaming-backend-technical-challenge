@@ -162,3 +162,15 @@ export async function outboxEventTypes(
     ORDER BY occurred_at, event_type`;
   return rows.map((row) => row.event_type);
 }
+
+/** §13 final invariant over the whole database: no wallet anywhere disagrees with its ledger. */
+export async function assertEveryWalletConsistent(sql: SQL): Promise<void> {
+  const mismatches: { id: string; stored: string; rebuilt: string }[] = await sql`
+    SELECT w.id, w.balance::text AS stored, r.rebuilt::text AS rebuilt
+    FROM wallets w,
+         LATERAL (SELECT COALESCE(SUM(CASE l.direction WHEN 'CREDIT' THEN l.amount ELSE -l.amount END), 0)
+                         AS rebuilt
+                  FROM wallet_ledger_entries l WHERE l.wallet_id = w.id) r
+    WHERE w.balance <> r.rebuilt`;
+  expect(mismatches).toEqual([]);
+}
