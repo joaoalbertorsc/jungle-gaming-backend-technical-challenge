@@ -160,7 +160,7 @@ describe('concurrency: worker processes, crashes and restarts', () => {
   });
 
   it('scenario 6: two relay processes on one outbox, after a relay died mid-publication, lose nothing', async () => {
-    for (const _ of range(10)) await openWallet('10.00');
+    for (let i = 0; i < 10; i++) await openWallet('10.00');
 
     // A relay publishes its first event and dies before recording it.
     const dying = await group.spawn('outbox-relay', {
@@ -171,7 +171,7 @@ describe('concurrency: worker processes, crashes and restarts', () => {
 
     // Two relays share the outbox while new events keep arriving.
     await Promise.all([group.spawn('outbox-relay'), group.spawn('outbox-relay')]);
-    for (const _ of range(20)) await openWallet('10.00');
+    for (let i = 0; i < 20; i++) await openWallet('10.00');
 
     await eventually('every outbox message published', async () => {
       const [row] =
@@ -242,7 +242,9 @@ describe('concurrency: worker processes, crashes and restarts', () => {
 
     await eventually('the stream under way', async () => (await statuses(messages)).size >= 10);
     await first.kill(); // crash: in-flight messages come back after the visibility timeout
-    expect(await second.stop()).toBe(0); // graceful: finishes or releases its messages
+    // Graceful: drains or releases its messages. Nest re-raises SIGTERM once its shutdown hooks ran,
+    // so outside a container (where the process is not PID 1) the exit status is 128 + 15.
+    expect([0, 143]).toContain(await second.stop());
     await Promise.all([group.spawn('consumer'), group.spawn('consumer')]);
 
     await eventually(

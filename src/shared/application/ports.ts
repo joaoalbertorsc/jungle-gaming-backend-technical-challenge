@@ -12,13 +12,15 @@ export interface IdGenerator {
  * Named points where tests can inject a failure (e.g. a crash just before commit). Production uses
  * a no-op implementation; nothing outside tests can trigger a fault (ADR-0017).
  */
-export type FaultPoint =
-  | 'wager.before-commit'
-  | 'wallet.before-commit'
-  | 'consumer.before-ack'
-  | 'outbox.before-publish'
-  | 'outbox.after-publish'
-  | 'pending-reference.before-commit';
+export const FAULT_POINTS = [
+  'wager.before-commit',
+  'wallet.before-commit',
+  'consumer.before-ack',
+  'outbox.before-publish',
+  'outbox.after-publish',
+  'pending-reference.before-commit',
+] as const;
+export type FaultPoint = (typeof FAULT_POINTS)[number];
 
 export interface FaultInjector {
   hit(point: FaultPoint): void;

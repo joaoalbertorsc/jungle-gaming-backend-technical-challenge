@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FAULT_POINTS, type FaultPoint } from '../shared/application/ports';
 
 /** Every process runs the same image; APP_ROLES selects which parts it activates (ADR 0001). */
 export const APP_ROLES = ['api', 'consumer', 'outbox-relay', 'retry-worker'] as const;
@@ -57,6 +58,11 @@ export interface AppConfig {
     /** Attempts before the transaction is rejected with REFERENCE_NOT_FOUND. */
     readonly maxAttempts: number;
   };
+  /** Test-only crash injection (ADR-0017); always undefined outside NODE_ENV=test. */
+  readonly faults: {
+    /** The process exits at once when it reaches this point, as if it had been killed. */
+    readonly crashAt: FaultPoint | undefined;
+  };
 }
 
 const rolesSchema = z
@@ -75,6 +81,8 @@ const rolesSchema = z
 const queueName = (fallback: string) => z.string().trim().min(1).default(fallback);
 
 const envSchema = z.object({
+  NODE_ENV: z.string().optional(),
+  FAULT_CRASH_AT: z.enum(FAULT_POINTS).optional(),
   APP_ROLES: rolesSchema,
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   HTTP_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
@@ -126,6 +134,11 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): A
   }
 
   const parsed = result.data;
+  if (parsed.FAULT_CRASH_AT !== undefined && parsed.NODE_ENV !== 'test') {
+    throw new ConfigValidationError([
+      'FAULT_CRASH_AT: fault injection is only honoured when NODE_ENV=test',
+    ]);
+  }
   return {
     roles: parsed.APP_ROLES,
     logLevel: parsed.LOG_LEVEL,
@@ -166,5 +179,6 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): A
       maxMs: Math.max(parsed.REFERENCE_RETRY_MAX_MS, parsed.REFERENCE_RETRY_BASE_MS),
       maxAttempts: parsed.REFERENCE_RETRY_MAX_ATTEMPTS,
     },
+    faults: { crashAt: parsed.FAULT_CRASH_AT },
   };
 }

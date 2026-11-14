@@ -79,6 +79,33 @@ jobs:
         if: ${{ always() }}
         run: docker compose down --volumes
 
+  concurrency:
+    name: Concurrency suite (real processes, Postgres + SQS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # §13: every role runs as its own OS process (bun src/main.ts) inside the workspace container.
+      - name: Run the concurrency suite inside the workspace container
+        run: >
+          docker compose run --rm workspace sh -c
+          "mkdir -p test-results &&
+          bun install --frozen-lockfile &&
+          bun test test/concurrency --timeout 120000
+          --reporter=junit --reporter-outfile=test-results/concurrency.xml"
+      - name: Concurrency test report
+        if: ${{ !cancelled() }}
+        uses: dorny/test-reporter@v3
+        with:
+          name: Concurrency test results
+          path: test-results/concurrency.xml
+          reporter: java-junit
+      - name: Container logs on failure
+        if: ${{ failure() }}
+        run: docker compose logs --no-color postgres ministack
+      - name: Tear down
+        if: ${{ always() }}
+        run: docker compose down --volumes
+
   image:
     name: Production image build
     runs-on: ubuntu-latest
