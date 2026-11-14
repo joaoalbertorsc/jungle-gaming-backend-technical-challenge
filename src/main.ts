@@ -7,7 +7,7 @@ import { type AppRole, loadConfig } from './config/load-config';
 const logger = new Logger('Bootstrap');
 
 /** Roles whose modules exist so far; the retry worker lands in phase 7. */
-const IMPLEMENTED_ROLES: readonly AppRole[] = ['api', 'consumer', 'outbox-relay'];
+const IMPLEMENTED_ROLES: readonly AppRole[] = ['api', 'consumer', 'outbox-relay', 'retry-worker'];
 
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
