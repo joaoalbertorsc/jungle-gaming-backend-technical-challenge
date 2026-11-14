@@ -160,7 +160,7 @@ describe('OutboxRelay', () => {
   it('a duplicate publication is safe for a consumer that deduplicates by eventId', async () => {
     await flush();
     await openWallet();
-    const [eventId] = await pendingIds();
+    const eventId = (await pendingIds())[0]!;
 
     // Published, then the process dies before recording it: the next relay publishes it again.
     const dying = relay({ faults: new FailAt('outbox.after-publish'), leaseMs: 300 });
@@ -187,7 +187,7 @@ describe('OutboxRelay', () => {
   it('records a failed publication and retries it with backoff', async () => {
     await flush();
     await openWallet();
-    const [eventId] = await pendingIds();
+    const eventId = (await pendingIds())[0]!;
     const broken = createTestRelay(app, sqs, {
       eventsQueueUrl: `${queues.urls.wageringEvents}-missing`,
     });
