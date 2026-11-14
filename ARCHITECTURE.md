@@ -117,7 +117,8 @@ The schema enforces the invariants on its own, even against hand-written SQL by 
 - Submit a wager over HTTP
 - Consume a wager from SQS: [`docs/diagrams/consume-wager-flow.md`](docs/diagrams/consume-wager-flow.md). The inbox
   row is written in the same transaction as the effects, and the message is acked only after commit.
-- Publish outbox events
+- Publish outbox events: [`docs/diagrams/outbox-relay-flow.md`](docs/diagrams/outbox-relay-flow.md). The claim uses
+  `SKIP LOCKED` plus a lease, so any number of relays run at once and a dead relay's work moves to another.
 - Resolve a pending reference
 
 ## 8. Failure handling _(phases 4–7)_
