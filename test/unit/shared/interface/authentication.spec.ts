@@ -23,7 +23,15 @@ describe('AuthenticationGuard', () => {
     );
   });
 
-  it.each(['/health/live', '/health/ready', '/metrics'])('leaves %s open', async (path) => {
+  it.each([
+    '/health/live',
+    '/health/ready',
+    '/metrics',
+    '/docs',
+    '/docs/swagger-ui.css',
+    '/openapi.json',
+    '/openapi.yaml',
+  ])('leaves %s open', async (path) => {
     expect(await new AuthenticationGuard(denyAll).canActivate(http(path))).toBe(true);
   });
 

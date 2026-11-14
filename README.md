@@ -35,6 +35,12 @@ curl http://localhost:3000/health/live
 
 ## Try it
 
+Open **http://localhost:3000/docs** (Swagger UI): every endpoint, its inputs, every response status and
+ready-to-send examples (one per wager kind), executable with "Try it out". The raw document is at
+`/openapi.json` and `/openapi.yaml`.
+
+Or with curl:
+
 ```bash
 # Create a wallet with 100.00 BRL
 curl -s -X POST localhost:3000/wallets -H 'content-type: application/json' \

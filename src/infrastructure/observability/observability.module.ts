@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { SQSClient } from '@aws-sdk/client-sqs';
 import type { MikroORM } from '@mikro-orm/postgresql';
+import { ApiOperation, ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Registry } from 'prom-client';
 import { APP_CONFIG } from '../../config/app-config.module';
 import type { AppConfig } from '../../config/load-config';
@@ -22,11 +23,25 @@ import { JsonLogger } from './json-logger';
 import { PrometheusMetrics } from './prometheus-metrics';
 
 /** GET /metrics on the API's own port (unauthenticated, like the health probes). */
+@ApiTags('Observability')
 @Controller()
 class MetricsController {
   constructor(@Inject(PrometheusMetrics) private readonly metrics: PrometheusMetrics) {}
 
   @Get('metrics')
+  @ApiOperation({
+    summary: 'Prometheus metrics of this process',
+    description: 'Catalogue in docs/observability.md. Worker processes serve it on METRICS_PORT.',
+  })
+  @ApiProduces('text/plain')
+  @ApiResponse({
+    status: 200,
+    description: 'Prometheus text exposition format',
+    schema: {
+      type: 'string',
+      example: 'wagering_transactions_total{kind="BET",status="PROCESSED",channel="http"} 3',
+    },
+  })
   @Header('Content-Type', Registry.PROMETHEUS_CONTENT_TYPE)
   render(): Promise<string> {
     return this.metrics.render();

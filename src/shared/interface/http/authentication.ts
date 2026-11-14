@@ -22,8 +22,8 @@ export class AllowAllAuthentication implements AuthPort {
   }
 }
 
-/** Probes and scrapes stay unauthenticated, as orchestrators and Prometheus expect. */
-const PUBLIC_PATHS = /^\/(health\/|metrics$)/;
+/** Probes, scrapes and the API documentation stay unauthenticated. */
+const PUBLIC_PATHS = /^\/(health\/|metrics$|docs(\/|$)|openapi\.(json|yaml)$)/;
 
 /** Global guard (APP_GUARD), the NestJS counterpart of a Spring Security filter chain. */
 @Injectable()
