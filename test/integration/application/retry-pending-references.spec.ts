@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { MikroOrmPendingReferenceQueue } from '../../../src/infrastructure/database/mikro-orm-pending-reference-queue';
 import type { SubmitWagerTransactionCommand } from '../../../src/modules/wagering/application/submit-wager-transaction';
 import { ReferenceRetryPolicy } from '../../../src/modules/wagering/domain/reference-retry-policy';
+import { WagerTransactionStatus as Status } from '../../../src/modules/wagering/domain/wager-transaction';
 import { ExponentialBackoff } from '../../../src/shared/domain/exponential-backoff';
 import {
   assertLedgerMatchesBalance,
@@ -78,7 +79,7 @@ describe('RetryPendingReferences', () => {
       referenceExternalTransactionId: betId,
       money: brl(amount),
     });
-    expect(refund.status).toBe('PENDING_REFERENCE');
+    expect(refund.status).toBe(Status.PendingReference);
     return { refund, betId };
   }
 

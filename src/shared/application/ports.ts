@@ -17,7 +17,8 @@ export type FaultPoint =
   | 'wallet.before-commit'
   | 'consumer.before-ack'
   | 'outbox.before-publish'
-  | 'outbox.after-publish';
+  | 'outbox.after-publish'
+  | 'pending-reference.before-commit';
 
 export interface FaultInjector {
   hit(point: FaultPoint): void;
@@ -52,6 +53,8 @@ export interface ApplicationMetrics {
   outboxPublished(eventType: string): void;
   /** A publication attempt failed and was rescheduled. */
   outboxFailed(): void;
+  /** A PENDING_REFERENCE retry ended: processed, rejected or rescheduled (ADR-0012). */
+  referenceRetry(result: string): void;
 }
 
 export const CLOCK = Symbol('CLOCK');
