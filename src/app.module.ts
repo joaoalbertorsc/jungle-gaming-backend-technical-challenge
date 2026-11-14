@@ -1,5 +1,5 @@
 import { type DynamicModule, Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { AppConfigModule } from './config/app-config.module';
 import type { AppConfig } from './config/load-config';
 import { DatabaseModule } from './infrastructure/database/database.module';
@@ -12,6 +12,11 @@ import { RetryWorkerModule } from './modules/wagering/interface/retry-worker.mod
 import { WagerConsumerModule } from './modules/wagering/interface/sqs/wager-consumer.module';
 import { WageringModule } from './modules/wagering/wagering.module';
 import { WalletModule } from './modules/wallet/wallet.module';
+import {
+  AllowAllAuthentication,
+  AUTH_PORT,
+  AuthenticationGuard,
+} from './shared/interface/http/authentication';
 import { ProblemDetailsFilter } from './shared/interface/http/problem-details.filter';
 
 /**
@@ -39,7 +44,12 @@ export class AppModule {
         WageringModule,
         ...workers,
       ],
-      providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
+      providers: [
+        { provide: APP_FILTER, useClass: ProblemDetailsFilter },
+        // Authentication extension point (ADR-0014): swap AllowAllAuthentication for a JWT adapter.
+        { provide: AUTH_PORT, useClass: AllowAllAuthentication },
+        { provide: APP_GUARD, useClass: AuthenticationGuard },
+      ],
     };
   }
 }
