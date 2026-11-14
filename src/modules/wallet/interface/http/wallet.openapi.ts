@@ -36,7 +36,9 @@ export const ledgerEntryViewSchema = z
 
 export const ledgerPageSchema = z
   .object({
-    entries: z.array(ledgerEntryViewSchema).meta({ description: 'Newest first' }),
+    entries: z
+      .array(ledgerEntryViewSchema)
+      .meta({ description: 'Wallet-version order, oldest first' }),
     nextCursor: z.string().nullable().meta({
       description: 'Opaque cursor for the next page (pass it as ?cursor=); null on the last page',
     }),

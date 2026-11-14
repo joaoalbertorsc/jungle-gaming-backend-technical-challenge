@@ -133,7 +133,7 @@ export class WagerTransactionsController {
     description: 'The transaction',
     standardSchema: wagerTransactionViewSchema,
   })
-  @ApiProblems(400, 404)
+  @ApiProblems(400, 404, 503)
   byId(
     @Param('transactionId', { schema: uuidSchema }) transactionId: string,
   ): Promise<WagerTransactionView> {
@@ -147,7 +147,7 @@ export class WagerTransactionsController {
     description: 'The transaction',
     standardSchema: wagerTransactionViewSchema,
   })
-  @ApiProblems(400, 404)
+  @ApiProblems(400, 404, 503)
   byProviderExternalId(
     @Param('providerId', { schema: identifierSchema }) providerId: string,
     @Param('externalTransactionId', { schema: identifierSchema }) externalTransactionId: string,
