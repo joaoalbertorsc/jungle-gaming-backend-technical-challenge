@@ -119,6 +119,12 @@ describe('OpenAPI documentation', () => {
       });
     });
 
+    it('states the ledger order the API actually uses (wallet version, oldest first)', () => {
+      const ledger = operation('get', '/wallets/{walletId}/ledger');
+      expect(JSON.stringify(ledger).toLowerCase()).not.toContain('newest first');
+      expect(JSON.stringify(ledger)).toContain('oldest first');
+    });
+
     it('declares every parameter once (headers are case-insensitive)', () => {
       for (const methods of Object.values(doc.paths)) {
         for (const op of Object.values(methods)) {
@@ -141,16 +147,16 @@ describe('OpenAPI documentation', () => {
     });
 
     it.each([
-      ['post', '/wallets', ['201', '400', '409']],
-      ['get', '/wallets/{walletId}', ['200', '400', '404']],
-      ['get', '/wallets/{walletId}/ledger', ['200', '400', '404']],
-      ['post', '/wallets/{walletId}/reconciliation', ['200', '400', '404']],
+      ['post', '/wallets', ['201', '400', '409', '503']],
+      ['get', '/wallets/{walletId}', ['200', '400', '404', '503']],
+      ['get', '/wallets/{walletId}/ledger', ['200', '400', '404', '503']],
+      ['post', '/wallets/{walletId}/reconciliation', ['200', '400', '404', '503']],
       ['post', '/wagering/transactions', ['200', '201', '202', '400', '409', '422', '503']],
-      ['get', '/wagering/transactions/{transactionId}', ['200', '400', '404']],
+      ['get', '/wagering/transactions/{transactionId}', ['200', '400', '404', '503']],
       [
         'get',
         '/providers/{providerId}/wagering/transactions/{externalTransactionId}',
-        ['200', '400', '404'],
+        ['200', '400', '404', '503'],
       ],
       ['get', '/health/live', ['200']],
       ['get', '/health/ready', ['200', '503']],
