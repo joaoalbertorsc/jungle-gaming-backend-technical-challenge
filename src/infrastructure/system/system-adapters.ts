@@ -49,6 +49,12 @@ export class NoopMetrics implements ApplicationMetrics {
   deadLettered(): void {
     // no-op
   }
+  outboxPublished(): void {
+    // no-op
+  }
+  outboxFailed(): void {
+    // no-op
+  }
 }
 
 /** Minimal structured logger until pino lands (phase 9): one JSON line per entry. */
