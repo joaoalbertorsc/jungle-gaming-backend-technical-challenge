@@ -57,6 +57,9 @@ export class RecordingMetrics implements ApplicationMetrics {
   referenceRetry(result: string): void {
     this.calls.push(`reference-retry:${result}`);
   }
+  processingDuration(channel: string, kind: string): void {
+    this.calls.push(`duration:${channel}:${kind}`);
+  }
 }
 
 export class RecordingLogger implements ApplicationLogger {

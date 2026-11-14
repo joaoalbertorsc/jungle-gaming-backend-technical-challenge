@@ -58,6 +58,10 @@ export interface AppConfig {
     /** Attempts before the transaction is rejected with REFERENCE_NOT_FOUND. */
     readonly maxAttempts: number;
   };
+  readonly metrics: {
+    /** Worker processes serve /metrics here; the API serves it on its HTTP port. */
+    readonly port: number | undefined;
+  };
   /** Test-only crash injection (ADR-0017); always undefined outside NODE_ENV=test. */
   readonly faults: {
     /** The process exits at once when it reaches this point, as if it had been killed. */
@@ -83,6 +87,7 @@ const queueName = (fallback: string) => z.string().trim().min(1).default(fallbac
 const envSchema = z.object({
   NODE_ENV: z.string().optional(),
   FAULT_CRASH_AT: z.enum(FAULT_POINTS).optional(),
+  METRICS_PORT: z.coerce.number().int().min(0).max(65_535).optional(),
   APP_ROLES: rolesSchema,
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   HTTP_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
@@ -179,6 +184,7 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): A
       maxMs: Math.max(parsed.REFERENCE_RETRY_MAX_MS, parsed.REFERENCE_RETRY_BASE_MS),
       maxAttempts: parsed.REFERENCE_RETRY_MAX_ATTEMPTS,
     },
+    metrics: { port: parsed.METRICS_PORT },
     faults: { crashAt: parsed.FAULT_CRASH_AT },
   };
 }

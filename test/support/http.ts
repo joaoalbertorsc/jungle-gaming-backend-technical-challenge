@@ -15,6 +15,8 @@ export interface HttpResponse {
 
 export interface RunningApi {
   readonly app: INestApplication;
+  /** Base URL, for requests whose response is not JSON (e.g. /metrics). */
+  readonly url: string;
   request(
     method: 'GET' | 'POST',
     path: string,
@@ -37,6 +39,7 @@ export async function startApi(
 
   return {
     app,
+    url: baseUrl,
     async request(method, path, options = {}) {
       const response = await fetch(`${baseUrl}${path}`, {
         method,

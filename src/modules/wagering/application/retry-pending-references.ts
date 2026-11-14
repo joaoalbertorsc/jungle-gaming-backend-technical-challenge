@@ -47,7 +47,11 @@ export interface RetryRound {
 }
 
 type Attempt =
-  | { readonly result: 'processed' | 'rejected'; readonly transaction: WagerTransaction }
+  | {
+      readonly result: 'processed' | 'rejected';
+      readonly transaction: WagerTransaction;
+      readonly correlationId: string;
+    }
   | { readonly result: 'rescheduled' | 'skipped' };
 
 /**
@@ -83,12 +87,27 @@ export class RetryPendingReferences {
     };
 
     for (const claim of claims) {
+      const started = performance.now();
       try {
         const attempt = await this.retry(claim);
         round[attempt.result].push(claim.transactionId);
         if (attempt.result === 'processed' || attempt.result === 'rejected') {
-          const { kind, status } = attempt.transaction;
-          metrics.transactionOutcome(kind, status, 'worker');
+          const { transaction, correlationId } = attempt;
+          metrics.transactionOutcome(transaction.kind, transaction.status, 'worker');
+          metrics.processingDuration(
+            'worker',
+            transaction.kind,
+            (performance.now() - started) / 1_000,
+          );
+          logger.info('pending reference resolved', {
+            correlationId,
+            transactionId: transaction.id,
+            walletId: transaction.walletId,
+            providerId: transaction.providerId,
+            status: transaction.status,
+            failureCode: transaction.failureCode,
+            channel: 'worker',
+          });
         }
         if (attempt.result !== 'skipped') metrics.referenceRetry(attempt.result);
       } catch (error) {
@@ -179,7 +198,11 @@ export class RetryPendingReferences {
       });
 
       faults?.hit('pending-reference.before-commit');
-      return { result: outcome.type === 'processed' ? 'processed' : 'rejected', transaction };
+      return {
+        result: outcome.type === 'processed' ? 'processed' : 'rejected',
+        transaction,
+        correlationId,
+      };
     });
   }
 }

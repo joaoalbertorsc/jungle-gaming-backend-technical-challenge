@@ -4,6 +4,7 @@ import { AppConfigModule } from './config/app-config.module';
 import type { AppConfig } from './config/load-config';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { SqsModule } from './infrastructure/messaging/sqs.module';
+import { ObservabilityModule } from './infrastructure/observability/observability.module';
 import { SystemModule } from './infrastructure/system/system.module';
 import { HealthModule } from './modules/health/health.module';
 import { OutboxRelayModule } from './modules/messaging/interface/outbox-relay.module';
@@ -32,6 +33,7 @@ export class AppModule {
         SystemModule,
         DatabaseModule.forRoot(config),
         SqsModule.forRoot(config),
+        ObservabilityModule,
         HealthModule,
         WalletModule,
         WageringModule,

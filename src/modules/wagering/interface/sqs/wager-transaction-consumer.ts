@@ -144,8 +144,10 @@ export class WagerTransactionConsumer {
       return;
     }
     const { message: wager, payloadHash } = parsed;
+    // The correlation fields of every log line about this message (§12); never the amount.
     const fields = {
       consumer: this.settings.consumerName,
+      correlationId: wager.messageId,
       messageId: wager.messageId,
       walletId: wager.data.walletId,
       providerId: wager.data.providerId,

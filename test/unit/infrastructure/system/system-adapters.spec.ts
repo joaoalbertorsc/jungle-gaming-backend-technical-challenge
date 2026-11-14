@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it, spyOn } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import {
-  JsonConsoleLogger,
   NoFaults,
   NoopMetrics,
   SystemClock,
@@ -8,10 +7,6 @@ import {
 } from '../../../../src/infrastructure/system/system-adapters';
 
 describe('system adapters', () => {
-  afterEach(() => {
-    spyOn(console, 'log').mockRestore();
-  });
-
   it('SystemClock reads the current time', () => {
     const before = Date.now();
     const now = new SystemClock().now().getTime();
@@ -40,26 +35,7 @@ describe('system adapters', () => {
       metrics.outboxPublished();
       metrics.outboxFailed();
       metrics.referenceRetry();
+      metrics.processingDuration();
     }).not.toThrow();
-  });
-
-  it('JsonConsoleLogger writes one JSON line per entry with level, message and fields', () => {
-    const lines: string[] = [];
-    spyOn(console, 'log').mockImplementation((line: string) => {
-      lines.push(line);
-    });
-    const logger = new JsonConsoleLogger();
-
-    logger.info('a', { walletId: 'w-1' });
-    logger.warn('b');
-    logger.error('c');
-
-    const entries = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
-    expect(entries.map((e) => [e.level, e.message])).toEqual([
-      ['info', 'a'],
-      ['warn', 'b'],
-      ['error', 'c'],
-    ]);
-    expect(entries[0]).toMatchObject({ walletId: 'w-1', time: expect.any(String) });
   });
 });

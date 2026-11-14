@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Param, Post, Res } from '@nestjs/common';
+import { APPLICATION_LOGGER, type ApplicationLogger } from '../../../../shared/application/ports';
 import { MissingIdempotencyKeyError } from '../../../../shared/interface/http/http-errors';
 import { CorrelationId } from '../../../../shared/interface/http/correlation-id';
 import { identifierSchema, uuidSchema } from '../../../../shared/interface/schemas';
@@ -40,6 +41,7 @@ export class WagerTransactionsController {
   constructor(
     private readonly submitTransaction: SubmitWagerTransaction,
     private readonly transactions: GetWagerTransaction,
+    @Inject(APPLICATION_LOGGER) private readonly logger: ApplicationLogger,
   ) {}
 
   @Post('wagering/transactions')
@@ -58,6 +60,18 @@ export class WagerTransactionsController {
       context: { correlationId, channel: 'http' },
     });
     response.status(httpStatusFor(outcome));
+    // Identifiers and the outcome only: the amount and the rest of the payload stay out (§12).
+    this.logger.info('wager transaction processed', {
+      correlationId,
+      transactionId: outcome.transactionId,
+      walletId: body.walletId,
+      providerId: body.providerId,
+      kind: body.kind,
+      status: outcome.status,
+      failureCode: outcome.failureCode,
+      idempotentReplay: outcome.idempotentReplay,
+      channel: 'http',
+    });
     return outcome;
   }
 

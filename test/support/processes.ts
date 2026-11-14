@@ -140,7 +140,7 @@ export class ProcessGroup {
   }
 }
 
-function freePort(): number {
+export function freePort(): number {
   const server = Bun.serve({ port: 0, fetch: () => new Response() });
   const { port } = server;
   void server.stop(true);

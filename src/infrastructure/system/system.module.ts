@@ -1,23 +1,10 @@
 import { Global, Module } from '@nestjs/common';
 import { APP_CONFIG } from '../../config/app-config.module';
 import type { AppConfig } from '../../config/load-config';
-import {
-  APPLICATION_LOGGER,
-  APPLICATION_METRICS,
-  CLOCK,
-  FAULT_INJECTOR,
-  ID_GENERATOR,
-} from '../../shared/application/ports';
-import {
-  CrashAt,
-  JsonConsoleLogger,
-  NoFaults,
-  NoopMetrics,
-  SystemClock,
-  UuidV7Generator,
-} from './system-adapters';
+import { CLOCK, FAULT_INJECTOR, ID_GENERATOR } from '../../shared/application/ports';
+import { CrashAt, NoFaults, SystemClock, UuidV7Generator } from './system-adapters';
 
-/** Production adapters for the cross-cutting application ports. */
+/** Production adapters for clock, ids and faults (logs and metrics: ObservabilityModule). */
 @Global()
 @Module({
   providers: [
@@ -30,9 +17,7 @@ import {
         faults.crashAt === undefined ? new NoFaults() : new CrashAt(faults.crashAt),
       inject: [APP_CONFIG],
     },
-    { provide: APPLICATION_LOGGER, useClass: JsonConsoleLogger },
-    { provide: APPLICATION_METRICS, useClass: NoopMetrics },
   ],
-  exports: [CLOCK, ID_GENERATOR, FAULT_INJECTOR, APPLICATION_LOGGER, APPLICATION_METRICS],
+  exports: [CLOCK, ID_GENERATOR, FAULT_INJECTOR],
 })
 export class SystemModule {}

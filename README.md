@@ -72,6 +72,14 @@ throwaway database (`test_*`), cloned from a migrated template (`wagering_templa
 starts every role as a separate OS process (`bun src/main.ts`), then kills and restarts them mid-test (§13). Run
 `docker compose down --volumes` to reset everything.
 
+## Observability
+
+- `GET /metrics` on the API, and on `METRICS_PORT` (9464) for worker processes, in Prometheus format.
+- `GET /health/live` and `GET /health/ready`.
+- Logs are JSON lines carrying `correlationId`, `messageId`, `transactionId`, `walletId` and `providerId`, never
+  amounts.
+- Metric catalogue, log fields and example alerts: [`docs/observability.md`](docs/observability.md).
+
 ## Useful commands
 
 | Command                                                    | Purpose                                           |

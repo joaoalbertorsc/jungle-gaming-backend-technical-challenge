@@ -57,6 +57,8 @@ export interface ApplicationMetrics {
   outboxFailed(): void;
   /** A PENDING_REFERENCE retry ended: processed, rejected or rescheduled (ADR-0012). */
   referenceRetry(result: string): void;
+  /** Time to process one wager submission (§12 processing latency). */
+  processingDuration(channel: string, kind: string, seconds: number): void;
 }
 
 export const CLOCK = Symbol('CLOCK');
