@@ -35,6 +35,7 @@ describe('system adapters', () => {
       metrics.outboxPublished();
       metrics.outboxFailed();
       metrics.referenceRetry();
+      metrics.processingDuration();
     }).not.toThrow();
   });
 });

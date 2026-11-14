@@ -85,28 +85,26 @@ describe('observability', () => {
     const { walletId, transactionId } = await walletAndBet('corr-observability-1');
 
     const entries = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
-    expect(entries).toContainEqual(
-      expect.objectContaining({
-        level: 'info',
-        message: 'wager transaction processed',
-        correlationId: 'corr-observability-1',
-        transactionId,
-        walletId,
-        providerId: 'provider-a',
-        status: 'PROCESSED',
-        channel: 'http',
-      }),
-    );
-    expect(entries).toContainEqual(
-      expect.objectContaining({
-        message: 'http request',
-        method: 'POST',
-        route: '/wagering/transactions',
-        status: 201,
-        correlationId: 'corr-observability-1',
-        durationMs: expect.any(Number),
-      }),
-    );
+    expect(entries.find((entry) => entry.message === 'wager transaction processed')).toMatchObject({
+      level: 'info',
+      correlationId: 'corr-observability-1',
+      transactionId,
+      walletId,
+      providerId: 'provider-a',
+      status: 'PROCESSED',
+      channel: 'http',
+    });
+    expect(
+      entries.find(
+        (entry) => entry.message === 'http request' && entry.route === '/wagering/transactions',
+      ),
+    ).toMatchObject({
+      method: 'POST',
+      route: '/wagering/transactions',
+      status: 201,
+      correlationId: 'corr-observability-1',
+      durationMs: expect.any(Number),
+    });
     expect(lines.join('\n')).not.toContain('25.00');
   });
 

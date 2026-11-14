@@ -1,5 +1,4 @@
 import type {
-  ApplicationLogger,
   ApplicationMetrics,
   Clock,
   FaultInjector,
@@ -78,21 +77,7 @@ export class NoopMetrics implements ApplicationMetrics {
   referenceRetry(): void {
     // no-op
   }
-}
-
-/** Minimal structured logger until pino lands (phase 9): one JSON line per entry. */
-export class JsonConsoleLogger implements ApplicationLogger {
-  info(message: string, fields?: Record<string, unknown>): void {
-    this.write('info', message, fields);
-  }
-  warn(message: string, fields?: Record<string, unknown>): void {
-    this.write('warn', message, fields);
-  }
-  error(message: string, fields?: Record<string, unknown>): void {
-    this.write('error', message, fields);
-  }
-
-  private write(level: string, message: string, fields?: Record<string, unknown>): void {
-    console.log(JSON.stringify({ level, time: new Date().toISOString(), message, ...fields }));
+  processingDuration(): void {
+    // no-op
   }
 }

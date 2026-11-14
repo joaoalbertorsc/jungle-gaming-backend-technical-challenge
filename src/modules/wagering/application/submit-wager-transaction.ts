@@ -74,6 +74,20 @@ export class SubmitWagerTransaction {
     command: SubmitWagerTransactionCommand,
     options: { readonly inbox?: InboxMessage } = {},
   ): Promise<WagerOutcome> {
+    const started = performance.now();
+    const outcome = await this.run(command, options);
+    this.metrics.processingDuration(
+      command.context.channel,
+      command.kind,
+      (performance.now() - started) / 1_000,
+    );
+    return outcome;
+  }
+
+  private async run(
+    command: SubmitWagerTransactionCommand,
+    options: { readonly inbox?: InboxMessage },
+  ): Promise<WagerOutcome> {
     // Validates the submission (kind, reference rules, money) and computes its payload hash.
     const probe = this.newTransaction(command);
 

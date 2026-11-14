@@ -1,6 +1,7 @@
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
+import { JsonLogger, NestJsonLogger } from '../infrastructure/observability/json-logger';
 import type { AppConfig } from '../config/load-config';
 
 /**
@@ -12,8 +13,9 @@ export async function createWorkerApplication(
   options: { readonly logger?: false } = {},
 ): Promise<INestApplicationContext> {
   const app = await NestFactory.createApplicationContext(AppModule.forRoot(config), {
-    ...(options.logger === false ? { logger: false } : {}),
+    ...(options.logger === false ? { logger: false } : { bufferLogs: true }),
   });
+  if (options.logger !== false) app.useLogger(new NestJsonLogger(app.get(JsonLogger)));
   app.enableShutdownHooks();
   await app.init();
   return app;
