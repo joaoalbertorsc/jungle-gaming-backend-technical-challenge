@@ -15,10 +15,10 @@ TDD (ADR-0017) and the delivery workflow (ADR-0018). Phases 11 and 12 are the cu
 | 7     | Pending-reference worker              | 2     | 29         | ✅ Done |
 | 8     | Concurrency suite                     | 5     | 34         | ✅ Done |
 | 9     | Observability                         | 2     | 36         | ✅ Done |
-| 10    | Documentation consolidation           | 3     | 39         | ⬜      |
-| 11    | Load test (optional)                  | 2     | 41         | ⬜      |
-| 12    | Keycloak authentication (optional)    | 3     | 44         | ⬜      |
-| 13    | Final requirements audit and delivery | 2     | 46         | ⬜      |
+| 10    | Documentation consolidation           | 3     | 39         | ✅ Done |
+| 11    | Load test (optional)                  | 2     | 41         | ✂️ Cut  |
+| 12    | Keycloak authentication (optional)    | 3     | 44         | ✂️ Cut  |
+| 13    | Final requirements audit and delivery | 2     | 46         | ✅ Done |
 | —     | Buffer                                | 2     | 48         |         |
 
 ## Phase 0: Project setup ✅

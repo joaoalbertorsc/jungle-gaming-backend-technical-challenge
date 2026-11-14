@@ -1,7 +1,7 @@
 # Submitting a wager
 
-Source: `src/modules/wagering/application/submit-wager-transaction.ts`. The same use case serves HTTP and,
-from phase 5, SQS (§10).
+Source: `src/modules/wagering/application/submit-wager-transaction.ts`. The same use case serves HTTP and
+SQS (§10).
 
 ```mermaid
 sequenceDiagram
@@ -12,7 +12,7 @@ sequenceDiagram
 
   P->>U: command + Idempotency-Key
   U->>U: WagerTransaction.create() validates kind, reference rules, money; computes payloadHash
-  U->>DB: lookup by idempotency key / provider + external id (no lock)
+  U->>DB: lookup by idempotency key / provider + external id (no lock, one snapshot)
   alt already stored
     U-->>P: replay (same outcome, balance observed then) or 409 conflict
   else new
@@ -28,7 +28,7 @@ sequenceDiagram
       U->>DB: nudge transactions waiting on this one
       U->>DB: COMMIT (deferred check: balance = ledger entry of its version)
     end
-    U-->>P: outcome (201 / 422 / 202 in phase 4)
+    U-->>P: outcome (HTTP 201 / 422 / 202; SQS ack)
   end
 ```
 

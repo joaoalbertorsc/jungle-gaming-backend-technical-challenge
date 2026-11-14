@@ -1,7 +1,7 @@
 # Architecture
 
-> Living document. It summarizes the design and links to the decision records in [`docs/adr/`](docs/adr/).
-> Sections marked _(phase N)_ are completed as those phases land.
+> It summarizes the design and links to the decision records in [`docs/adr/`](docs/adr/). The requirement →
+> code → test map is [`docs/traceability.md`](docs/traceability.md).
 
 ## 1. Overview
 
@@ -109,30 +109,96 @@ The schema enforces the invariants on its own, even against hand-written SQL by 
   deferred constraint trigger checks at commit that each wallet balance equals the ledger entry of its version.
 - **Least privilege.** The runtime role cannot run DDL and cannot update or delete history.
 
-## 7. Main flows _(phases 3–7)_
+## 7. Persistence choices (§4)
 
-- Submit a wager: [`docs/diagrams/submit-wager-flow.md`](docs/diagrams/submit-wager-flow.md). A lock-free replay
-  fast path, then one SQL transaction: wallet row lock → authoritative idempotency check → reference
-  resolution → processor → transaction, ledger, wallet and outbox events → commit.
-- Submit a wager over HTTP
-- Consume a wager from SQS: [`docs/diagrams/consume-wager-flow.md`](docs/diagrams/consume-wager-flow.md). The inbox
-  row is written in the same transaction as the effects, and the message is acked only after commit.
-- Publish outbox events: [`docs/diagrams/outbox-relay-flow.md`](docs/diagrams/outbox-relay-flow.md). The claim uses
-  `SKIP LOCKED` plus a lease, so any number of relays run at once and a dead relay's work moves to another.
-- Resolve a pending reference: [`docs/diagrams/retry-worker-flow.md`](docs/diagrams/retry-worker-flow.md). The worker
-  re-runs the §7 processor under the wallet lock. A claim is skipped if its attempt was already made, and the
-  nudge on arrival makes waiting rows due at once.
+- **MikroORM 7** (ADR-0004). It has explicit units of work (`em.transactional`), pessimistic locks
+  (`LockMode.PESSIMISTIC_WRITE`) and `EntitySchema` mappings that keep the domain free of decorators. The
+  alternatives fell short: TypeORM's transaction and locking API is weaker; Prisma has no row-level
+  `SELECT ... FOR UPDATE` without raw SQL and pulls in a generated client.
+- **Money.**
+  - Stored as `NUMERIC` in the `money_amount` domain and mapped to the domain's `bigint` minor units through
+    strings. A JavaScript `number` never carries an amount.
+  - Arithmetic is exact: inputs with more than 2 decimals are rejected, never rounded (ADR-0005).
+- **Transaction strategy.**
+  - One SQL transaction per operation through the `UnitOfWork` port. `SET LOCAL lock_timeout` bounds waits,
+    and driver errors are translated into application errors.
+  - Retryable races (unique violations of the idempotency keys) are re-run once.
+- **Hand-written SQL migrations** with up and down, because constraints, domains and triggers are the point
+  of the schema (ADR-0006).
 
-## 8. Failure handling _(phases 4–7)_
+## 8. Concurrency strategy (§8)
+
+**Choice: a pessimistic row lock per wallet** (`SELECT ... FOR UPDATE`, ADR-0007). It is combined with
+persistent idempotency and schema constraints as a backstop.
+
+- **Why pessimistic.** Every operation reads the balance, decides and writes. Under contention, optimistic
+  locking turns into retry storms on hot wallets and needs a retry policy at every entry point. A conditional
+  atomic update (`UPDATE ... WHERE balance >= x`) cannot express the reference rules (§7), which need several
+  reads. A row lock serializes exactly the operations that compete, only on one wallet.
+- **Bounded waits.** `lock_timeout` turns a long wait into `503 + Retry-After` on HTTP, or a visibility retry on
+  SQS, never a hang. Lock conflicts are a metric.
+- **No global lock.** Different wallets never wait for each other. Concurrency scenario 3 holds one wallet's
+  lock from outside and shows another wallet's bet complete at once.
+- **Multiple instances.** Processes are stateless, so all coordination lives in PostgreSQL: row locks, unique
+  keys, the inbox, and `SKIP LOCKED` leases for the relays and the retry worker.
+- **Broker features are an optimization.** SQS FIFO ordering and deduplication reduce work. Correctness comes
+  from the database: the concurrency suite even sends every message in its own FIFO group.
+- **Defence in depth.** If the code were wrong, the schema would still refuse the outcome: a negative balance,
+  a second reversal, a ledger gap, or a balance that disagrees with the ledger.
+- **Proof.** `test/concurrency/` runs the eight §13 scenarios with ≥ 3 OS processes, crashes and restarts.
+
+## 9. Main flows
+
+- **Submit a wager** (HTTP and SQS share one use case):
+  [`docs/diagrams/submit-wager-flow.md`](docs/diagrams/submit-wager-flow.md).
+  - A lock-free replay fast path reads both idempotency lookups from one snapshot.
+  - Then one SQL transaction: wallet row lock → authoritative idempotency check → reference resolution →
+    processor → transaction, ledger, wallet and outbox events → commit.
+- **Consume a wager from SQS:** [`docs/diagrams/consume-wager-flow.md`](docs/diagrams/consume-wager-flow.md). The
+  inbox row is written in the same transaction as the effects, and the message is acked only after commit.
+- **Publish outbox events:** [`docs/diagrams/outbox-relay-flow.md`](docs/diagrams/outbox-relay-flow.md). The claim
+  uses `SKIP LOCKED` plus a lease, so any number of relays can run, and a dead relay's work moves to another.
+- **Resolve a pending reference:** [`docs/diagrams/retry-worker-flow.md`](docs/diagrams/retry-worker-flow.md).
+  - The worker re-runs the §7 processor under the wallet lock, and skips a claim whose attempt was already
+    made.
+  - When the reference arrives, the nudge makes the waiting rows due at once.
+  - After 10 attempts (~13.5 min) the transaction is rejected with `REFERENCE_NOT_FOUND`.
+
+## 10. Failure handling
 
 - **HTTP.** One `ProblemDetailsFilter` maps every error to RFC 9457 Problem Details with a stable `code`. The
-  provider can tell apart invalid payload (400), idempotency conflict (409), business rejection (422),
-  pending (202) and transient failure (503 + `Retry-After`) by status code alone. See ADR-0009 and
+  provider can tell these apart by status code alone: invalid payload (400), idempotency conflict (409),
+  business rejection (422), pending (202) and transient failure (503 + `Retry-After`). See ADR-0009 and
   [`docs/API.md`](docs/API.md).
-- **Correlation.** `X-Correlation-Id` is accepted when safe, minted otherwise, and echoed in responses, errors
-  and events.
+- **SQS** (ADR-0010):
+  - business outcomes are acked;
+  - transient failures return with exponential visibility backoff;
+  - permanent failures go to the DLQ with a reason;
+  - the redrive policy caps attempts.
+- **Crashes.** Death before commit loses nothing, and death after commit but before the ack is absorbed by the
+  inbox. A relay that dies after publishing causes at most a duplicate event, which consumers drop by
+  `eventId`. A retry worker that dies has its claim expire, and another worker repeats the same attempt.
+- **Correlation.** `X-Correlation-Id` is accepted when safe, minted otherwise, and echoed in responses,
+  errors, logs and events.
 
-## 9. Trade-offs and limitations
+## 11. Observability (§12)
+
+JSON logs carry the correlation fields and redact credentials, payloads and amounts. Prometheus `/metrics` runs
+on every process. Liveness and readiness are separate probes. The catalogue is in
+[`docs/observability.md`](docs/observability.md) (ADR-0015).
+
+## 12. Testing (§13)
+
+TDD with red → green commits, against real PostgreSQL and SQS containers (ADR-0017). The suites:
+
+- **unit:** domain and application, ≥ 90% coverage per file;
+- **integration:** schema, repositories, use cases, consumer, relay, worker;
+- **e2e:** the HTTP contract and each role wired by Nest;
+- **concurrency:** the eight §13 scenarios as separate processes.
+
+Every test ends with the ledger invariant, `wallet.balance == balance rebuilt from the ledger`.
+
+## 13. Trade-offs and limitations
 
 - **Single database.** It is the consistency anchor and also the scaling ceiling. That is acceptable at this
   scope; sharding by wallet would be the next step.
@@ -140,6 +206,10 @@ The schema enforces the invariants on its own, even against hand-written SQL by 
   determinism under contention.
 - **MiniStack instead of real SQS.** Fidelity is covered by the emulator contract suite, but production
   behaviour (e.g. throttling) is not.
-- **Authentication deferred.** The extension point exists; the IdP integration is optional (ADR-0014).
+- **Authentication deferred.** A global guard over an `AuthPort` is in place (default: allow all); the
+  Keycloak/JWT adapter is designed but not built (ADR-0014).
+- **At-least-once events.** Consumers of `wagering-events` must deduplicate by `eventId`. Ordering is per
+  aggregate, within one relay batch.
+- **No load test.** Throughput was not measured; the optional `test:load` phase was cut for time.
 - **Required checks not enforced on GitHub Free private repositories.** "Merge only on green" is a process
   rule until the repository is public (ADR-0018).
