@@ -1,5 +1,8 @@
 # Data model
 
+Why: the schema is the last line of defence. Even a bug in the code, or hand-written SQL, cannot leave a
+negative balance, a duplicated movement or a ledger that disagrees with the balance.
+
 Source of truth: `src/infrastructure/database/migrations/`. Guarantees: ADR-0006.
 
 ```mermaid

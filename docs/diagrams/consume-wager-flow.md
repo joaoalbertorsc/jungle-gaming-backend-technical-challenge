@@ -1,5 +1,8 @@
 # Consuming a wager from SQS
 
+Why: SQS delivers at least once and a consumer can die at any step. A message must change the wallet once,
+and failures must split into done (ack), try again later (retry) and needs a human (DLQ).
+
 Source: `src/modules/wagering/interface/sqs/wager-transaction-consumer.ts` (ADR-0010).
 
 ```mermaid

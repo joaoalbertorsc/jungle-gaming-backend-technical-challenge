@@ -1,6 +1,15 @@
 # Observability
 
-Logs, metrics and health checks required by §12 (ADR-0015).
+- **Context.** §12 asks for structured logs carrying the correlation fields, without sensitive data, plus
+  metrics for statuses, duplicates, retries, the DLQ, lock conflicts, outbox lag and latency, and separate
+  liveness and readiness. Decisions: ADR-0015.
+- **Action.**
+  - Every process exposes Prometheus metrics (`prom-client`).
+  - Every log line is JSON, with redaction.
+  - The API serves two health probes.
+- **Result.** Each item below is covered by a test (`test/unit/infrastructure/observability/`,
+  `test/e2e/observability.e2e.spec.ts`). One `correlationId` follows a request from HTTP to the events it
+  publishes.
 
 ## Endpoints
 

@@ -1,5 +1,8 @@
 # Wager transaction lifecycle and rules
 
+Why: §7 defines what each kind may do and in which order the rules apply. The state machine makes sure a
+decided transaction never changes again.
+
 Source: `src/modules/wagering/domain/wager-transaction.ts` and `wager-transaction-processor.ts`.
 
 ## State machine (§6.3)
