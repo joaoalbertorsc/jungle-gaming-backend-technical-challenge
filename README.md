@@ -1,3 +1,5 @@
+**English** · [Português (Brasil)](README.pt-BR.md)
+
 # Distributed Wagering Processor
 
 A wallet and wagering transaction processor that keeps every balance exact while the same operation arrives
