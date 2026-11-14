@@ -15,9 +15,9 @@ sequenceDiagram
 
   loop every poll (or immediately while there is work)
     W->>DB: UPDATE wager_transactions SET next_reference_attempt_at = now + lease<br/>WHERE id IN (SELECT ... PENDING_REFERENCE AND due ... FOR UPDATE SKIP LOCKED LIMIT n)<br/>RETURNING id, wallet_id, reference_attempts
-    note over W,DB: autocommit: the lease keeps other workers away; no lock is held between rounds
+    note over W,DB: autocommit: the lease keeps other workers away, no lock is held between rounds
     loop each claim (arrival order)
-      W->>DB: BEGIN; SELECT wallet ... FOR UPDATE
+      W->>DB: BEGIN, then SELECT wallet ... FOR UPDATE
       W->>DB: still PENDING_REFERENCE with the claimed attempt count?
       alt no (decided, or another worker already made this attempt)
         W->>DB: COMMIT (nothing written)

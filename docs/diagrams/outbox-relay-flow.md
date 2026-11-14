@@ -12,7 +12,7 @@ sequenceDiagram
 
   loop every poll (or immediately while there is work)
     R->>DB: UPDATE ... SET next_attempt_at = now + lease<br/>WHERE id IN (SELECT ... due ... FOR UPDATE SKIP LOCKED LIMIT n) RETURNING *
-    note over R,DB: autocommit: no lock is held while publishing; the lease keeps other relays away
+    note over R,DB: autocommit: no lock is held while publishing, the lease keeps other relays away
     loop each claimed message (occurred_at order)
       R->>E: SendMessage(envelope, group = aggregateId, dedup = eventId)
       alt accepted
