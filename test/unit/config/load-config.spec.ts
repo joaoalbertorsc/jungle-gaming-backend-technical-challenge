@@ -101,6 +101,16 @@ describe('loadConfig', () => {
     });
   });
 
+  describe('metrics (§12)', () => {
+    it('exposes no separate metrics port unless asked to (the API serves /metrics itself)', () => {
+      expect(loadConfig(minimalEnv).metrics).toEqual({ port: undefined });
+    });
+
+    it('lets worker processes serve /metrics on METRICS_PORT', () => {
+      expect(loadConfig({ ...minimalEnv, METRICS_PORT: '9464' }).metrics).toEqual({ port: 9464 });
+    });
+  });
+
   describe('fault injection (ADR-0017)', () => {
     it('injects no fault by default', () => {
       expect(loadConfig(minimalEnv).faults).toEqual({ crashAt: undefined });
