@@ -58,7 +58,7 @@ export class WalletsController {
   })
   @ApiBodyExamples(CREATE_WALLET_EXAMPLES)
   @ApiResponse({ status: 201, description: 'Wallet created', standardSchema: walletViewSchema })
-  @ApiProblems(400, 409)
+  @ApiProblems(400, 409, 503)
   create(
     @Body({ schema: createWalletSchema }) body: CreateWalletBody,
     @CorrelationId() correlationId: string,
@@ -69,7 +69,7 @@ export class WalletsController {
   @Get(':walletId')
   @ApiOperation({ summary: 'Get a wallet and its current balance' })
   @ApiResponse({ status: 200, description: 'The wallet', standardSchema: walletViewSchema })
-  @ApiProblems(400, 404)
+  @ApiProblems(400, 404, 503)
   get(@Param('walletId', { schema: uuidSchema }) walletId: string): Promise<WalletView> {
     return this.getWallet.execute(walletId);
   }
@@ -78,7 +78,8 @@ export class WalletsController {
   @ApiOperation({
     summary: 'Browse the wallet ledger',
     description:
-      'Append-only ledger, newest first, keyset-paginated: pass `nextCursor` back as `cursor`. ' +
+      'Append-only ledger in wallet-version order (oldest first), keyset-paginated: pass ' +
+      '`nextCursor` back as `cursor`. ' +
       'Every balance change has exactly one entry; `walletVersion` has no gaps.',
   })
   @ApiResponse({
@@ -86,7 +87,7 @@ export class WalletsController {
     description: 'One page of entries',
     standardSchema: ledgerPageSchema,
   })
-  @ApiProblems(400, 404)
+  @ApiProblems(400, 404, 503)
   ledger(
     @Param('walletId', { schema: uuidSchema }) walletId: string,
     @Query({ schema: ledgerQuerySchema }) query: LedgerQuery,
@@ -107,7 +108,7 @@ export class WalletsController {
     description: 'Reconciliation report',
     standardSchema: reconciliationReportSchema,
   })
-  @ApiProblems(400, 404)
+  @ApiProblems(400, 404, 503)
   reconcile(
     @Param('walletId', { schema: uuidSchema }) walletId: string,
   ): Promise<ReconciliationReport> {
