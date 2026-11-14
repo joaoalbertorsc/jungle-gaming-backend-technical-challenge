@@ -1,6 +1,12 @@
 import { Body, Controller, Get, Headers, Inject, Param, Post, Res } from '@nestjs/common';
 import { APPLICATION_LOGGER, type ApplicationLogger } from '../../../../shared/application/ports';
+import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { MissingIdempotencyKeyError } from '../../../../shared/interface/http/http-errors';
+import {
+  ApiBodyExamples,
+  ApiCorrelationId,
+  ApiProblems,
+} from '../../../../shared/interface/http/openapi';
 import { CorrelationId } from '../../../../shared/interface/http/correlation-id';
 import { identifierSchema, uuidSchema } from '../../../../shared/interface/schemas';
 import { SubmitWagerTransaction } from '../../application/submit-wager-transaction';
@@ -12,6 +18,12 @@ import {
   type WagerTransactionPayload,
   wagerTransactionPayloadSchema,
 } from '../wager-transaction.schema';
+import {
+  SUBMIT_WAGER_EXAMPLES,
+  unprocessableSubmissionSchema,
+  wagerOutcomeSchema,
+  wagerTransactionViewSchema,
+} from './wager.openapi';
 
 interface StatusSetter {
   status(code: number): unknown;
@@ -36,6 +48,8 @@ export function httpStatusFor(outcome: WagerOutcome): number {
   }
 }
 
+@ApiTags('Wagering')
+@ApiCorrelationId()
 @Controller()
 export class WagerTransactionsController {
   constructor(
@@ -45,9 +59,46 @@ export class WagerTransactionsController {
   ) {}
 
   @Post('wagering/transactions')
+  @ApiOperation({
+    summary: 'Submit a wager transaction (BET, WIN, LOSS, REFUND, ROLLBACK)',
+    description:
+      'Idempotent: the same Idempotency-Key with the same payload replays the stored outcome. ' +
+      'The status code tells the outcome apart without reading the body. A REFUND or ROLLBACK ' +
+      'whose reference has not arrived yet is parked (202) and settled by the retry worker.',
+  })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description: 'Unique per operation; recommended `{providerId}:{externalTransactionId}`',
+    schema: { type: 'string', example: 'provider-a:bet-1001' },
+  })
+  @ApiBodyExamples(SUBMIT_WAGER_EXAMPLES)
+  @ApiResponse({
+    status: 201,
+    description: 'PROCESSED: new transaction applied',
+    standardSchema: wagerOutcomeSchema,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Idempotent replay of a PROCESSED transaction (`idempotentReplay: true`)',
+    standardSchema: wagerOutcomeSchema,
+  })
+  @ApiResponse({
+    status: 202,
+    description: 'PENDING_REFERENCE: the referenced transaction has not arrived; it is retried',
+    standardSchema: wagerOutcomeSchema,
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      'REJECTED by a business rule (outcome with `failureCode`, also on replay), or Problem ' +
+      'Details for WALLET_NOT_FOUND and CURRENCY_MISMATCH',
+    standardSchema: unprocessableSubmissionSchema,
+  })
+  @ApiProblems(400, 409, 503)
   async submit(
     @Body({ schema: wagerTransactionPayloadSchema }) body: WagerTransactionPayload,
-    @Headers('idempotency-key') idempotencyKeyHeader: string | undefined,
+    @Headers('Idempotency-Key') idempotencyKeyHeader: string | undefined,
     @CorrelationId() correlationId: string,
     @Res({ passthrough: true }) response: StatusSetter,
   ): Promise<WagerOutcome> {
@@ -76,6 +127,13 @@ export class WagerTransactionsController {
   }
 
   @Get('wagering/transactions/:transactionId')
+  @ApiOperation({ summary: 'Get a transaction by its id' })
+  @ApiResponse({
+    status: 200,
+    description: 'The transaction',
+    standardSchema: wagerTransactionViewSchema,
+  })
+  @ApiProblems(400, 404)
   byId(
     @Param('transactionId', { schema: uuidSchema }) transactionId: string,
   ): Promise<WagerTransactionView> {
@@ -83,6 +141,13 @@ export class WagerTransactionsController {
   }
 
   @Get('providers/:providerId/wagering/transactions/:externalTransactionId')
+  @ApiOperation({ summary: "Get a transaction by the provider's external id" })
+  @ApiResponse({
+    status: 200,
+    description: 'The transaction',
+    standardSchema: wagerTransactionViewSchema,
+  })
+  @ApiProblems(400, 404)
   byProviderExternalId(
     @Param('providerId', { schema: identifierSchema }) providerId: string,
     @Param('externalTransactionId', { schema: identifierSchema }) externalTransactionId: string,

@@ -13,8 +13,8 @@ interface ObservedResponse {
   once(event: 'finish', listener: () => void): unknown;
 }
 
-/** Probes and scrapes are measured but not logged: they would drown the request log. */
-const QUIET_PATHS = /^\/(health\/|metrics(\/|\?|$))/;
+/** Probes, scrapes and documentation assets are measured but not logged. */
+const QUIET_PATHS = /^\/(health\/|metrics(\/|\?|$)|docs(\/|$)|openapi\.)/;
 
 /**
  * One JSON access-log line and one latency observation per HTTP request. The label is the route

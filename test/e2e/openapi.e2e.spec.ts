@@ -109,21 +109,32 @@ describe('OpenAPI documentation', () => {
       expect(Object.keys(body?.examples ?? {}).sort()).toEqual(
         ['bet', 'loss', 'refund', 'rollback', 'win'].sort(),
       );
-      expect(submit.parameters).toContainEqual(
-        expect.objectContaining({ name: 'Idempotency-Key', in: 'header', required: true }),
-      );
-      expect(submit.parameters).toContainEqual(
-        expect.objectContaining({ name: 'X-Correlation-Id', in: 'header', required: false }),
-      );
+      expect(submit.parameters?.find((p) => p.name === 'Idempotency-Key')).toMatchObject({
+        in: 'header',
+        required: true,
+      });
+      expect(submit.parameters?.find((p) => p.name === 'X-Correlation-Id')).toMatchObject({
+        in: 'header',
+        required: false,
+      });
+    });
+
+    it('declares every parameter once (headers are case-insensitive)', () => {
+      for (const methods of Object.values(doc.paths)) {
+        for (const op of Object.values(methods)) {
+          const keys = (op.parameters ?? []).map((p) => `${p.in}:${p.name.toLowerCase()}`);
+          expect(new Set(keys).size).toBe(keys.length);
+        }
+      }
     });
 
     it('documents path and query parameters with their constraints', () => {
       const ledger = operation('get', '/wallets/{walletId}/ledger');
       const names = (ledger.parameters ?? []).map((p) => `${p.in}:${p.name}`);
 
-      expect(names).toEqual(
-        expect.arrayContaining(['path:walletId', 'query:cursor', 'query:limit']),
-      );
+      for (const name of ['path:walletId', 'query:cursor', 'query:limit']) {
+        expect(names).toContain(name);
+      }
       expect(ledger.parameters?.find((p) => p.name === 'walletId')?.schema).toMatchObject({
         format: 'uuid',
       });
@@ -156,7 +167,7 @@ describe('OpenAPI documentation', () => {
 
   /** Drift guard: real responses must match the schemas the document advertises. */
   describe('real responses match the documented schemas', () => {
-    function conforms<T extends z.ZodType>(response: HttpResponse, status: number, schema: T) {
+    function conforms(response: HttpResponse, status: number, schema: z.ZodType) {
       expect(response.status).toBe(status);
       const parsed = schema.safeParse(response.body);
       if (!parsed.success) throw new Error(JSON.stringify(parsed.error.issues));

@@ -4,6 +4,9 @@ Base URL (Docker Compose): `http://localhost:3000`. Money is always `{ "amount":
 Every error, on every endpoint, is RFC 9457 Problem Details (`application/problem+json`) with a stable `code`
 (ADR-0009). Send `X-Correlation-Id` to trace a request; it is echoed in the response header and in errors.
 
+Interactive version: Swagger UI at `/docs`, generated from the same validation schemas
+(`/openapi.json`, `/openapi.yaml`).
+
 ## Wallets
 
 ### `POST /wallets`

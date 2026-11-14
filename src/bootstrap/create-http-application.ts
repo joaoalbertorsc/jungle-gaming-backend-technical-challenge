@@ -6,6 +6,7 @@ import { JsonLogger, NestJsonLogger } from '../infrastructure/observability/json
 import { PrometheusMetrics } from '../infrastructure/observability/prometheus-metrics';
 import type { AppConfig } from '../config/load-config';
 import { correlationIdMiddleware } from '../shared/interface/http/correlation-id';
+import { setupOpenApi } from '../shared/interface/http/openapi';
 import { RequestValidationError } from '../shared/interface/http/http-errors';
 
 export interface HttpApplicationOptions {
@@ -43,6 +44,7 @@ export async function createHttpApplication(
         ),
     }),
   );
+  setupOpenApi(app);
   app.enableShutdownHooks();
   return app;
 }
